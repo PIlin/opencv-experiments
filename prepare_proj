@@ -7,10 +7,10 @@ $0 CONFIGURATION
 EOF
   exit 0
 }
-[ "$#" -lt 1 ] && usage
+#[ "$#" -lt 1 ] && usage
 
 
-TARGET=$1
+TARGET=${1:-Debug}
 
 echo 'execting:'
 
