@@ -46,15 +46,15 @@ dbpath = os.path.dirname(dbfile)
 cache_file = "%s/cached_options.txt" % (dbpath)
 
 db = None
-if os.access(cache_file, os.R_OK) == 0:
-    db = load_db(dbfile)
-    f = open(cache_file, "wb")
-    pickle.dump(db, f)
-    f.close()
-else:
-    f = open(cache_file)
-    db = pickle.load(f)
-    f.close()
+# if os.access(cache_file, os.R_OK) == 0:
+db = load_db(dbfile)
+    # f = open(cache_file, "wb")
+    # pickle.dump(db, f)
+    # f.close()
+# else:
+#     f = open(cache_file)
+#     db = pickle.load(f)
+#     f.close()
 
 if db and srcfile in db:
     for option in db[srcfile]:
