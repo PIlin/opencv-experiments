@@ -5,7 +5,6 @@
 
 #include <opencv2/opencv.hpp>
 
-#include "tracker.hpp"
 
 using namespace cv;
 using namespace std;
@@ -35,13 +34,21 @@ const vector<win> wins = {
 struct track
 {
 	static int track_num;
-	track(int val) :
-		name("track_" + to_string(track_num++)),
+
+	track() {}
+
+	track(int val) : track(val, "track_" + to_string(track_num++))
+	{
+	}
+
+	track(int val, string name) :
+		name(new string(name)),
 		value(new int(val))
 	{
 		cout << name << endl;
-		cv::createTrackbar(name, controls_win_name, value.get(), 255, &track::on_track, this);
+		cv::createTrackbar(name, controls_win_name, value.get(), 255, &track::on_track, this->name.get());
 	}
+
 
 	~track()
 	{
@@ -49,17 +56,17 @@ struct track
 
 	static void on_track(int val, void* ud)
 	{
-		track& t = *(track*)ud;
+		const string& name = *(const string*)ud;
 
-		std::cout << t.name << " " << val << endl;
+		std::cout << name << " " << val << endl;
 	}
 
-	string name;
+	shared_ptr<string> name;
 	shared_ptr<int> value;
 };
 int track::track_num = 0;
 
-std::vector<track> trackbars;
+std::map<string, track> trackbars;
 
 Mat disp_hsv(cv::Mat frame_bgr)
 {
@@ -67,8 +74,8 @@ Mat disp_hsv(cv::Mat frame_bgr)
 	cvtColor(frame_bgr, frame, CV_BGR2HSV);
 
 
-	std::vector<int> low = { *trackbars[0].value, *trackbars[2].value, *trackbars[4].value};
-	std::vector<int> hi = { *trackbars[1].value, *trackbars[3].value, *trackbars[5].value};
+	std::vector<int> low = { *trackbars["Hmin"].value, *trackbars["Smin"].value, *trackbars["Vmin"].value};
+	std::vector<int> hi = { *trackbars["Hmax"].value, *trackbars["Smax"].value, *trackbars["Vmax"].value};
 
 	Mat tres;
 	cv::inRange(frame, low, hi, tres);
@@ -91,7 +98,7 @@ Mat disp_hsv(cv::Mat frame_bgr)
 		imshow("hsv " + std::to_string(i), res);
 	}
 
-	int s = *trackbars[6].value;
+	int s = *trackbars["erode"].value;
 	const Mat dil_elem = cv::getStructuringElement(MORPH_ELLIPSE, Size(s,s));
 
 	//imshow("hsv all", frame);
@@ -137,12 +144,17 @@ int main ( int argc, char **argv )
 		cv::moveWindow(w.name, w.x, w.y);
 	}
 
-	trackbars = {
-		0, 10,
-		0, 10,
-		220, 255,
-		3
-	};
+	{
+		auto t = [](int v, string n) {return std::make_pair(n, track(v, n)); };
+
+		trackbars = {
+			t(0, "Hmin"), t(10, "Hmax"),
+			t(0, "Smin"), t(10, "Smax"),
+			t(220, "Vmin"), t(255, "Vmax"),
+			t(3, "erode"),
+			t(3, "blur")
+		};
+	}
 
 	cv::Mat frame;
 	cv::setMouseCallback(main_win_name, on_mouse, &frame);
