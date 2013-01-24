@@ -6,6 +6,9 @@
 #include <string>
 #include <vector>
 
+#include "track.hpp"
+#include "utils.hpp"
+
 using namespace std;
 using namespace cv;
 
@@ -18,7 +21,8 @@ struct win
 };
 const vector<win> wins = {
 	{"main", 10, 10, WINDOW_AUTOSIZE},
-	{"tres", 655, 10, WINDOW_AUTOSIZE},
+	{"tres", 415, 10, WINDOW_AUTOSIZE},
+	{"track", 820, 10, WINDOW_AUTOSIZE},
 	// {controls_win_name, 10, 1000, WINDOW_NORMAL}
 };
 
@@ -213,6 +217,7 @@ struct BlobCtrl
 		invalidated(true)
 	{
 		blobs.push_back(make_shared<RealBlob>(Rect{10, 10, 15, 15}));
+		blobs.push_back(make_shared<RealBlob>(Rect{37, 120, 20, 20}));
 
 		for (auto& sb : blobs)
 			mouseCtrl.add_blob(sb);
@@ -229,10 +234,8 @@ struct BlobCtrl
 	{
 		if (invalidated)
 		{
-			auto clear = [](Mat& m) { m = Mat::zeros(m.size(), m.type()); };
-
-			clear(control_frame);
-			clear(frame);
+			control_frame = zeroed(control_frame);
+			frame = zeroed(frame);
 
 			for (auto cb : blobs)
 			{
@@ -255,7 +258,7 @@ struct BlobCtrl
 		}
 	}
 
-} blobCtrl ({640, 480});
+} blobCtrl ({400, 300});
 
 
 int main()
@@ -272,6 +275,8 @@ int main()
 	while (true)
 	{
 		blobCtrl.draw();
+
+		do_track(blobCtrl.frame);
 
 		char kp = cv::waitKey(20);
 		if (kp == 27)
