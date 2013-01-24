@@ -13,6 +13,7 @@ import os.path
 import pickle
 import sys
 import json
+from pprint import pprint
 
 compilation_database_pattern = re.compile('(?<=\s)-[DIOUWfgs][^=\s]+(?:=\\"[^"]+\\"|=[^"]\S+)?')
 
@@ -39,11 +40,34 @@ def load_db(filename):
         compilation_database[compilation_entry["file"]] = [ p.strip() for p in compilation_database_pattern.findall(compilation_entry["command"]) ]
     return compilation_database
 
+def guess_option(filename, db):
+    guessed = []
+
+    name, ext = os.path.splitext(filename)
+    guesses = [name + '.cpp', name + '.c']
+
+    for key in db.iterkeys():
+        if key.endswith('main.cpp'):
+            guesses.append(key)
+            break
+
+    for g in guesses:
+        if os.path.isfile(g):
+            # print ('guessed = ', g)
+            for opt in db[g]:
+                guessed.append(opt)
+            break
+
+    return guessed
+
+
+
 #scriptpath = os.path.dirname(os.path.abspath(sys.argv[1]))
 srcfile = sys.argv[1]
 dbfile = find_dffile(os.path.dirname(srcfile))
 dbpath = os.path.dirname(dbfile)
 cache_file = "%s/cached_options.txt" % (dbpath)
+
 
 db = None
 # if os.access(cache_file, os.R_OK) == 0:
@@ -56,6 +80,12 @@ db = load_db(dbfile)
 #     db = pickle.load(f)
 #     f.close()
 
-if db and srcfile in db:
-    for option in db[srcfile]:
-        print option
+
+
+if db:
+    if srcfile in db:
+        for option in db[srcfile]:
+            print option
+    else:
+        for option in guess_option(srcfile, db):
+            print option
