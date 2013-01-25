@@ -417,3 +417,15 @@ void cvRenderTracks(CvTracks const tracks, IplImage *imgSource, IplImage *imgDes
 		}
 
 	}
+
+
+		ostream& operator<< (ostream& output, const cvb::CvTrack& t)
+		{
+			output << t.id << ": "
+				<< t.label
+				<< ", [(" << t.minx << ", " << t.miny << ") - (" << t.maxx << ", " << t.maxy << ")]"
+				// << ", c(" << t.centroid << ")"
+				<< ", l(" << t.lifetime << ", " << t.active << ", " << t.inactive << ")";
+
+			return output;
+		}
