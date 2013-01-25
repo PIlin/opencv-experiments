@@ -47,8 +47,8 @@ set(version ${CVBLOB_VERSION})
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cvblob.pc.cmake.in" "${CMAKE_BINARY_DIR}/cvblob.pc" @ONLY IMMEDIATE)
 
 # Save libs and executables in the same place
-set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib CACHE PATH "Output directory for libraries" )
-set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin CACHE PATH "Output directory for applications" )
+#set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib CACHE PATH "Output directory for libraries" )
+#set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin CACHE PATH "Output directory for applications" )
 
 # --------------------------------------------------------------------------------------------
 #   Installation for CMake Module:  cvBlobConfig.cmake
@@ -66,75 +66,75 @@ set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin CACHE PATH "Output directory 
 # Already done above.
 
 # Set CMAKE_INCLUDE_DIRS_CONFIGCMAKE to the list of include directories:
-set(CMAKE_INCLUDE_DIRS_CONFIGCMAKE "${CMAKE_CURRENT_SOURCE_DIR}/include/")
-set(CMAKE_LIB_DIRS_CONFIGCMAKE "${LIBRARY_OUTPUT_PATH}")
+#set(CMAKE_INCLUDE_DIRS_CONFIGCMAKE "${CMAKE_CURRENT_SOURCE_DIR}/include/")
+#set(CMAKE_LIB_DIRS_CONFIGCMAKE "${LIBRARY_OUTPUT_PATH}")
 
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cvBlobConfig.cmake.in" "${CMAKE_BINARY_DIR}/cvBlobConfig.cmake" IMMEDIATE @ONLY)
+#configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cvBlobConfig.cmake.in" "${CMAKE_BINARY_DIR}/cvBlobConfig.cmake" IMMEDIATE @ONLY)
 
 # --------------------------------------------------------------------------------------------
 #  Part 2/3: ${BIN_DIR}/unix-install/cvBlobConfig.cmake -> For use *with* "make install"
 # -------------------------------------------------------------------------------------------
 # Set CMAKE_INCLUDE_DIRS_CONFIGCMAKE to the list of include directories:
 
-set(CMAKE_INCLUDE_DIRS_CONFIGCMAKE "${CMAKE_INSTALL_PREFIX}/include/")
-set(CMAKE_LIB_DIRS_CONFIGCMAKE "${CMAKE_INSTALL_PREFIX}/lib")
+#set(CMAKE_INCLUDE_DIRS_CONFIGCMAKE "${CMAKE_INSTALL_PREFIX}/include/")
+#set(CMAKE_LIB_DIRS_CONFIGCMAKE "${CMAKE_INSTALL_PREFIX}/lib")
 
 #exec_program(${CMAKE_COMMAND} ARGS "-E make_directory \"${CMAKE_BINARY_DIR}/unix-install/\"")
-exec_program(mkdir ARGS "-p \"${CMAKE_BINARY_DIR}/unix-install/\"")
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cvBlobConfig.cmake.in" "${CMAKE_BINARY_DIR}/unix-install/cvBlobConfig.cmake" IMMEDIATE @ONLY)
+#exec_program(mkdir ARGS "-p \"${CMAKE_BINARY_DIR}/unix-install/\"")
+#configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cvBlobConfig.cmake.in" "${CMAKE_BINARY_DIR}/unix-install/cvBlobConfig.cmake" IMMEDIATE @ONLY)
 
-if(UNIX)
+#if(UNIX)
   # For a command "FIND_PACKAGE(FOO)", CMake will look at the directory /usr/share|lib/FOO/FOOConfig.cmake, so:
-  install(FILES ${CMAKE_BINARY_DIR}/unix-install/cvBlobConfig.cmake DESTINATION ${CMAKE_INSTALL_PREFIX}/share/cvblob/)
-endif()
+#  install(FILES ${CMAKE_BINARY_DIR}/unix-install/cvBlobConfig.cmake DESTINATION ${CMAKE_INSTALL_PREFIX}/share/cvblob/)
+#endif()
 
 # --------------------------------------------------------------------------------------------
 #  Part 3/3: ${BIN_DIR}/win-install/cvBlobConfig.cmake  -> For use within binary installers/packages
 # -------------------------------------------------------------------------------------------
-if(WIN32)
+#if(WIN32)
   # Set CMAKE_INCLUDE_DIRS_CONFIGCMAKE to the list of include directories:
 
   # This will expand to, for example, <program files>/cvBlob 1.1.0/include
-  set(CMAKE_INCLUDE_DIRS_CONFIGCMAKE "${THIS_CVBLOB_CONFIG_PATH}/include/")
+#  set(CMAKE_INCLUDE_DIRS_CONFIGCMAKE "${THIS_CVBLOB_CONFIG_PATH}/include/")
 
   # This will expand to, for example, <program files>/cvBlob 1.1.0/lib
-  set(CMAKE_LIB_DIRS_CONFIGCMAKE "\"\${THIS_CVBLOB_CONFIG_PATH}/lib\"")
+#  set(CMAKE_LIB_DIRS_CONFIGCMAKE "\"\${THIS_CVBLOB_CONFIG_PATH}/lib\"")
 
   #exec_program(${CMAKE_COMMAND} ARGS "-E make_directory \"${CMAKE_BINARY_DIR}/win-install/\"")
-  exec_program(mkdir ARGS "-p \"${CMAKE_BINARY_DIR}/win-install/\"")
-  configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cvBlobConfig.cmake.in" "${CMAKE_BINARY_DIR}/win-install/cvBlobConfig.cmake" IMMEDIATE @ONLY)
-endif()
+#  exec_program(mkdir ARGS "-p \"${CMAKE_BINARY_DIR}/win-install/\"")
+#  configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cvBlobConfig.cmake.in" "${CMAKE_BINARY_DIR}/win-install/cvBlobConfig.cmake" IMMEDIATE @ONLY)
+#endif()
 # --------------------------------------------------------------------------------------------
 
-if(UNIX)
-  install(FILES "${CMAKE_BINARY_DIR}/cvblob.pc" DESTINATION lib/pkgconfig)
-endif(UNIX)
+#if(UNIX)
+#  install(FILES "${CMAKE_BINARY_DIR}/cvblob.pc" DESTINATION lib/pkgconfig)
+#endif(UNIX)
+#
+#if(WIN32)
+#  set(CPACK_GENERATOR "ZIP")
+#  set(CPACK_SOURCE_GENERATOR "ZIP")
+#else(WIN32)
+#  set(CPACK_GENERATOR "TGZ")
+#  set(CPACK_SOURCE_GENERATOR "TGZ")
+#endif(WIN32)
 
-if(WIN32)
-  set(CPACK_GENERATOR "ZIP")
-  set(CPACK_SOURCE_GENERATOR "ZIP")
-else(WIN32)
-  set(CPACK_GENERATOR "TGZ")
-  set(CPACK_SOURCE_GENERATOR "TGZ")
-endif(WIN32)
+#set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Blob library for OpenCV")
+#set(CPACK_PACKAGE_CONTACT grendel.ccl@gmail.com)
+#set(CPACK_PACKAGE_VENDOR "Cristóbal Carnero Liñán <grendel.ccl@gmail.com>")
+#set(CPACK_PACKAGE_DESCRIPTION_FILE ${cvBlob_SOURCE_DIR}/README)
+#set(CPACK_PACKAGE_VERSION_MAJOR ${CVBLOB_VERSION_MAJOR})
+#set(CPACK_PACKAGE_VERSION_MINOR ${CVBLOB_VERSION_MINOR})
+#set(CPACK_PACKAGE_VERSION_PATCH ${CVBLOB_VERSION_PATCH})
+#set(CPACK_PACKAGE_VERSION ${CVBLOB_VERSION})
+#set(CPACK_RESOURCE_FILE_LICENSE ${cvBlob_SOURCE_DIR}/COPYING.LESSER)
+#set(CPACK_RESOURCE_FILE_README ${cvBlob_SOURCE_DIR}/README)
 
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Blob library for OpenCV")
-set(CPACK_PACKAGE_CONTACT grendel.ccl@gmail.com)
-set(CPACK_PACKAGE_VENDOR "Cristóbal Carnero Liñán <grendel.ccl@gmail.com>")
-set(CPACK_PACKAGE_DESCRIPTION_FILE ${cvBlob_SOURCE_DIR}/README)
-set(CPACK_PACKAGE_VERSION_MAJOR ${CVBLOB_VERSION_MAJOR})
-set(CPACK_PACKAGE_VERSION_MINOR ${CVBLOB_VERSION_MINOR})
-set(CPACK_PACKAGE_VERSION_PATCH ${CVBLOB_VERSION_PATCH})
-set(CPACK_PACKAGE_VERSION ${CVBLOB_VERSION})
-set(CPACK_RESOURCE_FILE_LICENSE ${cvBlob_SOURCE_DIR}/COPYING.LESSER)
-set(CPACK_RESOURCE_FILE_README ${cvBlob_SOURCE_DIR}/README)
+#set(CPACK_SOURCE_PACKAGE_FILE_NAME "cvBlob-src-${CPACK_PACKAGE_VERSION}")
+#set(CPACK_SOURCE_GENERATOR "TGZ")
+#set(CPACK_SOURCE_IGNORE_FILES
+#  "~$"
+#  "/\\\\.svn/"
+#  #     "^${PROJECT_SOURCE_DIR}/old/"
+#)#
 
-set(CPACK_SOURCE_PACKAGE_FILE_NAME "cvBlob-src-${CPACK_PACKAGE_VERSION}")
-set(CPACK_SOURCE_GENERATOR "TGZ")
-set(CPACK_SOURCE_IGNORE_FILES
-  "~$"
-  "/\\\\.svn/"
-  #     "^${PROJECT_SOURCE_DIR}/old/"
-)
-
-include(CPack)
+#include(CPack)
