@@ -309,7 +309,11 @@ int main()
 	{
 		if (blobCtrl.draw())
 		{
-			do_track(blobCtrl.frame);
+			auto dbv = do_track(blobCtrl.frame);
+			for (auto& db : dbv)
+			{
+				cout << "detected blob " << db.id << " " << db.centroid << endl;
+			}
 		}
 
 		char kp = cv::waitKey(20);

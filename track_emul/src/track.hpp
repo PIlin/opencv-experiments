@@ -3,6 +3,15 @@
 
 #include <opencv2/opencv.hpp>
 
-void do_track(cv::Mat frame);
+#include <vector>
+
+struct DtBlob
+{
+	uint32_t id;
+	cv::Point2f centroid;
+};
+
+
+std::vector<DtBlob> do_track(cv::Mat frame);
 
 #endif // TRACK_HPP__
