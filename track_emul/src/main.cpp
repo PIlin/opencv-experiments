@@ -294,6 +294,8 @@ struct BlobCtrl
 } blobCtrl ({400, 300});
 
 
+
+
 int main()
 {
 	for (auto& w : wins)

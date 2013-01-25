@@ -8,6 +8,9 @@ project( ${TARGET_NAME}_proj )
 
 find_package( OpenCV 2 REQUIRED )
 
+FIND_PACKAGE(Boost REQUIRED)
+
+
 file(GLOB_RECURSE SOURCES *.cpp)
 file(GLOB_RECURSE HEADERS *.hpp)
 
