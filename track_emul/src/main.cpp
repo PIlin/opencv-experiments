@@ -23,6 +23,7 @@ const vector<win> wins = {
 	{"main", 10, 10, WINDOW_AUTOSIZE},
 	{"tres", 415, 10, WINDOW_AUTOSIZE},
 	{"track", 820, 10, WINDOW_AUTOSIZE},
+	{"detected", 1225, 10, WINDOW_AUTOSIZE}
 	// {controls_win_name, 10, 1000, WINDOW_NORMAL}
 };
 
@@ -36,9 +37,15 @@ struct RealBlob
 {
 	bool selected;
 	Rect pos;
-	RealBlob(Rect r): selected(false), pos(r) {}
+	bool enabled;
 
+	RealBlob(Rect r):
+		selected(false),
+		pos(r),
+		enabled(true)
+	{
 
+	}
 
 	template <typename ostream>
 	friend ostream& operator << (ostream& os, const RealBlob &base)
@@ -58,7 +65,7 @@ struct MouseCtrl
 		bool is_down2up() const { return !now && prev; }
 		bool is_up2down() const { return now && !prev; }
 	};
-	std::array<pressed_t, 2> pressed;
+	std::array<pressed_t, 3> pressed;
 
 	std::vector<shared_ptr<RealBlob>> blobs;
 	decltype(blobs)::iterator current;
@@ -87,7 +94,7 @@ struct MouseCtrl
 			return sb->pos.contains(this->pos);
 		};
 
-		cout << "find_next_pressed" << endl;
+		// cout << "find_next_pressed" << endl;
 
 
 		auto prev = current;
@@ -138,11 +145,18 @@ struct MouseCtrl
 				on_invalidate();
 		}
 
+		if (pressed[2].is_up2down() && blobs.end() != current)
+		{
+			(*current)->enabled = !(*current)->enabled;
+			if (on_invalidate)
+				on_invalidate();
+		}
+
 		if (pressed[0].now && blobs.end() != current)
 		{
 			auto sb = *current;
 
-			cout << "current " << sb << " " << *sb << endl;
+			// cout << "current " << sb << " " << *sb << endl;
 
 			sb->pos += pos - center(sb->pos);
 			if (on_invalidate)
@@ -181,6 +195,16 @@ struct MouseCtrl
 		case CV_EVENT_RBUTTONUP:
 			{
 				pressed[1].set(false);
+				break;
+			}
+		case CV_EVENT_MBUTTONDOWN:
+			{
+				pressed[2].set(true);
+				break;
+			}
+		case CV_EVENT_MBUTTONUP:
+			{
+				pressed[2].set(false);
 				break;
 			}
 		default:
@@ -230,8 +254,9 @@ struct BlobCtrl
 		invalidated = true;
 	}
 
-	void draw()
+	bool draw()
 	{
+		bool res = false;
 		if (invalidated)
 		{
 			control_frame = zeroed(control_frame);
@@ -242,12 +267,17 @@ struct BlobCtrl
 				cv::rectangle(control_frame,
 					cb->pos,
 					(cb->selected ? Scalar(128,255,128) : Scalar(255,255,255)),
-					CV_FILLED);
+					(cb->enabled ? CV_FILLED : 0)
+				);
 
-				cv::rectangle(frame,
-					cb->pos,
-					Scalar(255,255,255),
-					CV_FILLED);
+				if (cb->enabled)
+				{
+					cv::rectangle(frame,
+						cb->pos,
+						Scalar(255,255,255),
+						CV_FILLED
+					);
+				}
 			}
 
 
@@ -255,7 +285,10 @@ struct BlobCtrl
 			imshow("tres", frame);
 
 			invalidated = false;
+			res = true;
 		}
+
+		return res;
 	}
 
 } blobCtrl ({400, 300});
@@ -274,9 +307,10 @@ int main()
 	// init
 	while (true)
 	{
-		blobCtrl.draw();
-
-		do_track(blobCtrl.frame);
+		if (blobCtrl.draw())
+		{
+			do_track(blobCtrl.frame);
+		}
 
 		char kp = cv::waitKey(20);
 		if (kp == 27)
