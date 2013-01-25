@@ -3,6 +3,8 @@
 #include <cstring>
 #include <iostream>
 
+#include <list>
+
 #include <opencv2/opencv.hpp>
 
 #include <cvblob.h>
@@ -148,6 +150,24 @@ std::tuple<Mat, Mat> disp_hsv(cv::Mat frame_bgr)
 			erode(tres, tres, dil_elem);
 		}
 	}
+
+	{
+		static std::list<cv::Mat> prev_frames;
+
+		int s = *trackbars["prev_and"].value;
+		if (s > 0)
+		{
+			prev_frames.push_back(tres.clone());
+			while (prev_frames.size() > s)
+				prev_frames.pop_front();
+
+			for (auto& f : prev_frames)
+			{
+				cv::bitwise_and(tres, f, tres);
+			}
+		}
+	}
+
 	imshow("hsv tres dil", tres);
 
 	{
@@ -259,7 +279,8 @@ int main ( int argc, char **argv )
 			t(0, "Smin"), t(4, "Smax"),
 			t(235, "Vmin"), t(255, "Vmax"),
 			t(3, "erode"),
-			t(0, "blur")
+			t(0, "blur"),
+			t(1, "prev_and")
 		};
 	}
 
