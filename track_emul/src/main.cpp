@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "calibrator.hpp"
 #include "track.hpp"
 #include "utils.hpp"
 
@@ -226,8 +227,22 @@ struct MouseCtrl
 } mouseCtrl;
 
 
-struct BlobCtrl
+struct BlobCtrl : public LightControl
 {
+	virtual void Enable()
+	{
+		PPF();
+		blobs[0]->enabled = true;
+		invalidate();
+	}
+	virtual void Disable()
+	{
+		PPF();
+		blobs[0]->enabled = false;
+		invalidate();
+	}
+
+	///
 	std::vector<shared_ptr<RealBlob>> blobs;
 
 	Mat frame;
@@ -293,13 +308,28 @@ struct BlobCtrl
 
 } blobCtrl ({400, 300});
 
+Tracker tracker;
 
+void draw_tracker()
+{
+	Mat f;
+	f = Mat::zeros(blobCtrl.frame.size(), CV_8UC3);
+	tracker.draw_tracks(f);
+	imshow("track", f);
 
+	f = Mat::zeros(blobCtrl.frame.size(), CV_8UC3);
+	tracker.draw_detected(f);
+	imshow("detected", f);
+}
 
 int main()
 {
+	// fsm_test();
+	// exit(0);
 
-	Tracker tracker;
+	bool need_step = false;
+	bool calibration = true;
+	Calibrator calib(blobCtrl, tracker);
 
 	for (auto& w : wins)
 	{
@@ -312,20 +342,25 @@ int main()
 	// init
 	while (true)
 	{
+		if (calibration && need_step)
+		{
+			need_step = false;
+
+			calib.step();
+
+			if (calib.is_done())
+			{
+				calibration = false;
+			}
+		}
+
 		if (blobCtrl.draw())
 		{
 			tracker.update_tracks(blobCtrl.frame);
-			auto dids = tracker.detect(5);
-			tracker.save_detected(dids);
+			//auto dids = tracker.detect(5);
+			//tracker.save_detected(dids);
 
-			Mat f;
-			f = Mat::zeros(blobCtrl.frame.size(), CV_8UC3);
-			tracker.draw_tracks(f);
-			imshow("track", f);
-
-			f = Mat::zeros(blobCtrl.frame.size(), CV_8UC3);
-			tracker.draw_detected(f);
-			imshow("detected", f);
+			draw_tracker();
 
 			auto dbv = tracker.get_all_detected();
 			for (auto& db : dbv)
@@ -338,6 +373,22 @@ int main()
 		if (kp == 27)
 		{
 			break;
+		}
+
+		switch(kp)
+		{
+		case 'c':
+			{
+				calibration = true;
+				calib.begin();
+				break;
+			}
+		case ' ':
+			{
+				need_step = true;
+				cout << "------------ need step -----------" << endl;
+				break;
+			}
 		}
 	}
 

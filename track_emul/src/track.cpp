@@ -83,6 +83,8 @@ public:
 
 	std::vector<uint32_t> detect(int const inactive_time) const
 	{
+		PPF();
+
 		std::vector<uint32_t> res;
 
 		for (auto& p : tracks)
@@ -111,6 +113,8 @@ public:
 
 	void save_detected(std::vector<uint32_t> ids)
 	{
+		PPF();
+
 		for (auto& id : ids)
 			detected.insert(id);
 	}

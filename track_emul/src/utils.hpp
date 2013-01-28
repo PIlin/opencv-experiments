@@ -23,4 +23,8 @@ std::unique_ptr<T> make_unique( Args&& ...args )
     return std::unique_ptr<T>( new T( std::forward<Args>(args)... ) );
 }
 
+#define PPF() do { std::cout << __PRETTY_FUNCTION__ << endl; } while(0)
+#define PPFX(x) do { std::cout << __PRETTY_FUNCTION__ << x << endl; } while(0)
+
+
 #endif
