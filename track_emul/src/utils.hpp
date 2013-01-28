@@ -4,16 +4,23 @@
 
 #include <opencv2/opencv.hpp>
 
-inline cv::Mat zeroed(cv::Mat& m)
+#include <memory>
+
+inline cv::Mat zeroed(cv::Mat const & m)
 {
 	return cv::Mat::zeros(m.size(), m.type());
 }
 
-inline cv::Mat zeroed(cv::Mat&& m)
+inline cv::Mat zeroed(cv::Mat const&& m)
 {
 	return cv::Mat::zeros(m.size(), m.type());
 }
 
-
+// http://herbsutter.com/gotw/_102/
+template<typename T, typename ...Args>
+std::unique_ptr<T> make_unique( Args&& ...args )
+{
+    return std::unique_ptr<T>( new T( std::forward<Args>(args)... ) );
+}
 
 #endif

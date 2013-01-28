@@ -10,11 +10,6 @@
 using namespace cv;
 using namespace std;
 
-cvb::CvBlobs blobs;
-cvb::CvTracks tracks;
-
-std::map<cvb::CvID, std::shared_ptr<cvb::CvTrack>> old_tracks;
-
 template<typename K, typename V>
 std::map<K, std::shared_ptr<V>> deep_copy(std::map<K, V*> const& in)
 {
@@ -28,76 +23,101 @@ std::map<K, std::shared_ptr<V>> deep_copy(std::map<K, V*> const& in)
 	return out;
 }
 
-
-std::set<cvb::CvID> detected;
-
-std::vector<DtBlob> do_track(cv::Mat frame)
+class Tracker::Tracker_impl
 {
-	IplImage iframe = frame;
-
-
-
-	Mat m = Mat::ones(frame.size(), CV_8UC3);
-	IplImage d = m;
-	IplImage* dst = &d;
-
-	Mat mdet = Mat::zeros(frame.size(), CV_8UC3);
-	IplImage ddet = mdet;
-
-
-	IplImage *labelImg = cvCreateImage(cvGetSize(&iframe), IPL_DEPTH_LABEL, 1);
-	unsigned int nLabeldPixels = cvb::cvLabel(&iframe, labelImg, blobs);
-	cvb::cvRenderBlobs(labelImg, blobs, &iframe, dst);
-
-
-	old_tracks = deep_copy(tracks);
-
-	cvb::cvUpdateTracks(blobs, tracks, 20., 6);
-	cvb::cvRenderTracks(tracks, dst, dst, CV_TRACK_RENDER_ID|CV_TRACK_RENDER_BOUNDING_BOX);
-
+public:
+	Tracker & t;
+	Tracker_impl(Tracker& t) :
+		t(t)
 	{
-		cout << "+++++++++++++++++" << endl;
-		for (auto& it : old_tracks)
-		{
-			cout << it.first << " - " << *it.second << endl;
-		}
-		cout << "=================" << endl;
-		for (auto& it : tracks)
-		{
-			cout << it.first << " - " << *it.second << endl;
-		}
-		cout << "=================" << endl;
 	}
 
-	// Mat label = *labelImg;
-	imshow("track", m);
+	/////////////////
 
-	const int inactivity_time = 5;
-	for (auto& p : tracks)
+	cvb::CvBlobs blobs;
+	cvb::CvTracks tracks;
+	std::map<cvb::CvID, std::shared_ptr<cvb::CvTrack>> old_tracks;
+	std::set<cvb::CvID> detected;
+	IplImage *labelImg = NULL;
+
+	void update_tracks(cv::Mat const& frame)
 	{
-		if (p.second->inactive == 0)
-		{
-			cout << "inactive 0" << endl;
-			auto old_p = old_tracks.find(p.first);
-			if (old_p != old_tracks.end())
-			{
-				cout << "in old" << endl;
-				if (old_p->second->inactive == inactivity_time)
-				{
-					cout << "old inactive " << old_p->second->inactive << endl;
+		IplImage iframe = frame;
 
-					detected.insert(old_p->first);
+		if (labelImg) cvReleaseImage(&labelImg);
+		labelImg = cvCreateImage(cvGetSize(&iframe), IPL_DEPTH_LABEL, 1);
+		unsigned int nLabeldPixels = cvb::cvLabel(&iframe, labelImg, blobs);
+
+		old_tracks = deep_copy(tracks);
+
+		cvb::cvUpdateTracks(blobs, tracks, 20., 6);
+
+		{
+			cout << "+++++++++++++++++" << endl;
+			for (auto const& it : old_tracks)
+			{
+				cout << it.first << " - " << *it.second << endl;
+			}
+			cout << "=================" << endl;
+			for (auto const& it : tracks)
+			{
+				cout << it.first << " - " << *it.second << endl;
+			}
+			cout << "=================" << endl;
+		}
+
+
+		// remove old tracks from detected
+		std::vector<cvb::CvID> removed;
+		for (auto const& d : detected)
+		{
+			if (tracks.find(d) == tracks.end())
+				removed.push_back(d);
+		}
+		for (auto const& d : removed)
+		{
+			cout << "removing track " << d << " from detected" << endl;
+			detected.erase(d);
+		}
+	}
+
+	std::vector<uint32_t> detect(int const inactive_time) const
+	{
+		std::vector<uint32_t> res;
+
+		for (auto& p : tracks)
+		{
+			if (p.second->inactive == 0)
+			{
+				cout << "inactive 0" << endl;
+				auto old_p = old_tracks.find(p.first);
+				if (old_p != old_tracks.end())
+				{
+					cout << "in old" << endl;
+					if (old_p->second->inactive == inactive_time)
+					{
+						cout << "old inactive " << old_p->second->inactive << endl;
+
+						res.push_back(old_p->first);
+					}
 				}
 			}
+
 		}
 
+
+		return res;
 	}
 
-
-	std::vector<DtBlob> result;
-
+	void save_detected(std::vector<uint32_t> ids)
 	{
-		std::vector<cvb::CvID> removed;
+		for (auto& id : ids)
+			detected.insert(id);
+	}
+
+	std::vector<DtBlob> get_all_detected() const
+	{
+		std::vector<DtBlob> res;
 		for (auto const& did : detected)
 		{
 			auto tit = tracks.find(did);
@@ -107,26 +127,55 @@ std::vector<DtBlob> do_track(cv::Mat frame)
 				if (bit != blobs.end())
 				{
 					auto b = bit->second;
-
-					cvb::cvRenderBlob(labelImg, b, &ddet, &ddet, CV_BLOB_RENDER_COLOR|CV_BLOB_RENDER_CENTROID|CV_BLOB_RENDER_BOUNDING_BOX|CV_BLOB_RENDER_ANGLE | CV_BLOB_RENDER_TO_STD);
-
-					result.push_back( { did, cv::Point2f(b->centroid.x, b->centroid.y) } );
+					res.push_back( { did, cv::Point2f(b->centroid.x, b->centroid.y) } );
 				}
-			}
-			else
-			{
-				removed.push_back(did);
 			}
 		}
 
-		for (auto& did : removed)
-			detected.erase(did);
-
-		imshow("detected", mdet);
+		return res;
 	}
 
 
-	cvReleaseImage(&labelImg);
+	void draw_detected(cv::Mat & frame) const
+	{
+		IplImage iframe = frame;
+		for (auto const& did : detected)
+		{
+			auto tit = tracks.find(did);
+			if (tit != tracks.end())
+			{
+				auto bit = blobs.find(tit->second->label);
+				if (bit != blobs.end())
+				{
+					auto const& b = bit->second;
+					cvb::cvRenderBlob(labelImg, b, &iframe, &iframe
+						,CV_BLOB_RENDER_COLOR|CV_BLOB_RENDER_CENTROID|CV_BLOB_RENDER_BOUNDING_BOX|CV_BLOB_RENDER_ANGLE | CV_BLOB_RENDER_TO_STD
+						);
+				}
+			}
+		}
 
-	return result;
+	}
+
+	void draw_tracks(cv::Mat & frame) const
+	{
+		IplImage iframe = frame;
+		cvb::cvRenderBlobs(labelImg, blobs, &iframe, &iframe);
+		cvb::cvRenderTracks(tracks, &iframe, &iframe);
+	}
+};
+
+
+void Tracker::update_tracks(cv::Mat const& frame) { return impl->update_tracks(frame); }
+std::vector<uint32_t> Tracker::detect(int const inactive_time) const { return impl->detect(inactive_time); }
+void Tracker::save_detected(std::vector<uint32_t> ids) { return impl->save_detected(ids); }
+std::vector<DtBlob> Tracker::get_all_detected() const { return impl->get_all_detected(); }
+
+void Tracker::draw_detected(cv::Mat & frame) const { return impl->draw_detected(frame); }
+void Tracker::draw_tracks(cv::Mat & frame) const { return impl->draw_tracks(frame); }
+
+Tracker::Tracker() :
+	impl(make_shared<Tracker_impl>(*this))
+{
+
 }

@@ -298,6 +298,9 @@ struct BlobCtrl
 
 int main()
 {
+
+	Tracker tracker;
+
 	for (auto& w : wins)
 	{
 		cv::namedWindow(w.name, w.flags);
@@ -311,7 +314,20 @@ int main()
 	{
 		if (blobCtrl.draw())
 		{
-			auto dbv = do_track(blobCtrl.frame);
+			tracker.update_tracks(blobCtrl.frame);
+			auto dids = tracker.detect(5);
+			tracker.save_detected(dids);
+
+			Mat f;
+			f = Mat::zeros(blobCtrl.frame.size(), CV_8UC3);
+			tracker.draw_tracks(f);
+			imshow("track", f);
+
+			f = Mat::zeros(blobCtrl.frame.size(), CV_8UC3);
+			tracker.draw_detected(f);
+			imshow("detected", f);
+
+			auto dbv = tracker.get_all_detected();
 			for (auto& db : dbv)
 			{
 				cout << "detected blob " << db.id << " " << db.centroid << endl;
