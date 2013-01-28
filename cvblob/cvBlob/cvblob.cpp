@@ -133,7 +133,7 @@ namespace cvb
 		__CV_END__;
 	}*/
 
-		void cvRenderBlob(const IplImage *imgLabel, CvBlob *blob, IplImage *imgSource, IplImage *imgDest, unsigned short mode, CvScalar const &color, double alpha)
+		void cvRenderBlob(IplImage const * const imgLabel, CvBlob const *blob, IplImage *imgSource, IplImage *imgDest, unsigned short mode, CvScalar const &color, double alpha)
 		{
 			CV_FUNCNAME("cvRenderBlob");
 			__CV_BEGIN__;
@@ -281,7 +281,7 @@ namespace cvb
 
 			typedef std::map<CvLabel, CvScalar> Palete;
 
-			void cvRenderBlobs(const IplImage *imgLabel, CvBlobs &blobs, IplImage *imgSource, IplImage *imgDest, unsigned short mode, double alpha)
+			void cvRenderBlobs(IplImage const * const imgLabel, CvBlobs const &blobs, IplImage *imgSource, IplImage *imgDest, unsigned short mode, double alpha)
 			{
 				CV_FUNCNAME("cvRenderBlobs");
 				__CV_BEGIN__;
@@ -308,7 +308,7 @@ namespace cvb
 						}
 					}
 
-					for (CvBlobs::iterator it=blobs.begin(); it!=blobs.end(); ++it)
+					for (CvBlobs::const_iterator it=blobs.begin(); it!=blobs.end(); ++it)
 						cvRenderBlob(imgLabel, (*it).second, imgSource, imgDest, mode, pal[(*it).second->label], alpha);
 
 				}
@@ -316,7 +316,7 @@ namespace cvb
 			}
 
 	// Returns radians
-			double cvAngle(CvBlob *blob)
+			double cvAngle(CvBlob const *blob)
 			{
 				CV_FUNCNAME("cvAngle");
 				__CV_BEGIN__;

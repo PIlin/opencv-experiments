@@ -373,7 +373,7 @@ inline CvPoint2D64f cvCentroid(CvBlob *blob)
 	/// \param blob Blob.
 	/// \return Angle orientation in radians.
 	/// \see CvBlob
-double cvAngle(CvBlob *blob);
+double cvAngle(CvBlob const *blob);
 
 	/// \fn cvSaveImageBlob(const char *filename, IplImage *img, CvBlob const *blob)
 	/// \brief Save the image of a blob to a file.
@@ -408,7 +408,7 @@ void cvSaveImageBlob(const char *filename, IplImage *img, CvBlob const *blob);
 	/// \see CV_BLOB_RENDER_ANGLE
 	/// \see CV_BLOB_RENDER_TO_LOG
 	/// \see CV_BLOB_RENDER_TO_STD
-void cvRenderBlob(const IplImage *imgLabel, CvBlob *blob, IplImage *imgSource, IplImage *imgDest, unsigned short mode=0x000f, CvScalar const &color=CV_RGB(255, 255, 255), double alpha=1.);
+void cvRenderBlob(IplImage const * const imgLabel, CvBlob const *blob, IplImage *imgSource, IplImage *imgDest, unsigned short mode=0x000f, CvScalar const &color=CV_RGB(255, 255, 255), double alpha=1.);
 
 	/// \fn void cvRenderBlobs(const IplImage *imgLabel, CvBlobs &blobs, IplImage *imgSource, IplImage *imgDest, unsigned short mode=0x000f, double alpha=1.)
 	/// \brief Draws or prints information about blobs.
@@ -424,7 +424,7 @@ void cvRenderBlob(const IplImage *imgLabel, CvBlob *blob, IplImage *imgSource, I
 	/// \see CV_BLOB_RENDER_ANGLE
 	/// \see CV_BLOB_RENDER_TO_LOG
 	/// \see CV_BLOB_RENDER_TO_STD
-void cvRenderBlobs(const IplImage *imgLabel, CvBlobs &blobs, IplImage *imgSource, IplImage *imgDest, unsigned short mode=0x000f, double alpha=1.);
+void cvRenderBlobs(IplImage const * const imgLabel, CvBlobs const &blobs, IplImage *imgSource, IplImage *imgDest, unsigned short mode=0x000f, double alpha=1.);
 
 	/// \fn void cvSetImageROItoBlob(IplImage *img, CvBlob const *blob)
 	/// \brief Set the ROI of an image to the bounding box of a blob.
