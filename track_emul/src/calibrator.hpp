@@ -12,6 +12,9 @@ public:
 	virtual void Enable() = 0;
 	virtual void Disable() = 0;
 
+	virtual bool IsEnabled() = 0;
+	virtual bool IsDisabled() = 0;
+
 protected:
 	virtual ~LightControl() {}
 };
@@ -27,10 +30,19 @@ protected:
 	virtual ~CameraControl() {}
 };
 
+class CameraTrackerControl
+{
+public:
+	virtual void UDC() = 0;
+
+protected:
+	virtual ~CameraTrackerControl() {}
+};
+
 class Calibrator
 {
 public:
-	Calibrator(LightControl& lc, Tracker& tr, CameraControl& cc);
+	Calibrator(LightControl& lc, Tracker& tr, CameraControl& cc, CameraTrackerControl& ctc);
 
 	~Calibrator();
 
@@ -46,6 +58,7 @@ public:
 	LightControl& lc;
 	Tracker& tracker;
 	CameraControl& cc;
+	CameraTrackerControl& ctc;
 
 	class FSM;
 	std::unique_ptr<FSM> fsm_;

@@ -242,6 +242,21 @@ struct BlobCtrl : public LightControl, public CameraControl
 		invalidate();
 	}
 
+	virtual bool IsEnabled()
+	{
+		return blobs[0]->enabled;
+	}
+
+	virtual bool IsDisabled()
+	{
+		return !blobs[0]->enabled;
+	}
+
+	virtual void UDC()
+	{
+
+	}
+
 	///
 
 	virtual void Lock()
@@ -354,6 +369,24 @@ void draw_tracker()
 	imshow("detected", f);
 }
 
+struct CTC : public CameraTrackerControl
+{
+
+	virtual void UDC()
+	{
+		blobCtrl.draw();
+		tracker.update_tracks(blobCtrl.frame);
+		draw_tracker();
+
+		auto dbv = tracker.get_all_detected();
+		for (auto& db : dbv)
+		{
+			cout << "detected blob " << db.id << " " << db.centroid << endl;
+		}
+	}
+
+} ctc;
+
 int main()
 {
 	// fsm_test();
@@ -362,8 +395,7 @@ int main()
 	// static int counter = 0;
 	bool need_step = false;
 	bool calibration = false;
-	//Calibrator calib(blobCtrl, tracker);
-	auto calib = std::make_shared<Calibrator>(blobCtrl, tracker, blobCtrl);
+	auto calib = std::make_shared<Calibrator>(blobCtrl, tracker, blobCtrl, ctc);
 
 	// calib->begin();
 
@@ -378,31 +410,10 @@ int main()
 	// init
 	while (true)
 	{
-		if (calibration && need_step)
+		if (need_step)
 		{
-			need_step = false;
-
 			calib->step();
-
-			if (calib->is_done())
-			{
-				calibration = false;
-			}
-		}
-
-		if (blobCtrl.draw())
-		{
-			tracker.update_tracks(blobCtrl.frame);
-			//auto dids = tracker.detect(5);
-			//tracker.save_detected(dids);
-
-			draw_tracker();
-
-			auto dbv = tracker.get_all_detected();
-			for (auto& db : dbv)
-			{
-				cout << "detected blob " << db.id << " " << db.centroid << endl;
-			}
+			need_step = false;
 		}
 
 		char kp = cv::waitKey(20);
