@@ -7,7 +7,7 @@ set(TARGET_NAME track)
 project( ${TARGET_NAME}_proj )
 
 find_package( OpenCV 2 REQUIRED )
-find_package(Boost REQUIRED)
+find_package(Boost 1.52.0 REQUIRED COMPONENTS system)
 
 file(GLOB_RECURSE SOURCES *.cpp)
 file(GLOB_RECURSE HEADERS *.hpp)
@@ -24,5 +24,5 @@ target_link_libraries( ${TARGET_NAME} ${OpenCV_LIBS})
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../cvblob/cvBlob"  "${CMAKE_CURRENT_BINARY_DIR}/cvblob")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../../cvblob/cvBlob")
-target_link_libraries( ${TARGET_NAME} cvblob)
+target_link_libraries( ${TARGET_NAME} cvblob ${Boost_LIBRARIES})
 

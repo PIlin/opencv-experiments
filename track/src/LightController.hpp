@@ -18,6 +18,8 @@ struct LightID
 	}
 };
 
+class SerialPort;
+
 class LightController : public LightControl
 {
 public:
@@ -33,7 +35,14 @@ public:
 
 public:
 
-	// LightController();
+	LightController();
+	virtual ~LightController();
+
+	void poll();
+
+private:
+
+	std::unique_ptr<SerialPort> port;
 
 };
 

@@ -249,7 +249,7 @@ struct CTC : public CameraTrackerControl
 
 
 
-int main ( int argc, char **argv )
+int main ( int argc, char **argv ) try
 {
 	CTC ctc(make_unique<WebCamera>(), make_unique<Tracker>());
 	// CTC ctc(make_unique<KinectCamera>());
@@ -257,7 +257,6 @@ int main ( int argc, char **argv )
 	LightController lc;
 
 	StateController sc(lc, ctc);
-
 
 	for (auto& w : wins)
 	{
@@ -287,14 +286,16 @@ int main ( int argc, char **argv )
 
 	while (true)
 	{
-		if (!manual || need_step)
-		{
-			sc.step();
+		lc.poll();
 
-			need_step = !manual;
-		}
+		// if (!manual || need_step)
+		// {
+		// 	sc.step();
 
-		char kp = cv::waitKey(20);
+		// 	need_step = !manual;
+		// }
+
+		char kp = cv::waitKey(200);
 		if (kp == 27)
 		{
 			break;
@@ -318,4 +319,14 @@ int main ( int argc, char **argv )
 	}
 
 	return 0;
+}
+catch(std::exception& e)
+{
+	std::cerr << "Got exception\n" << e.what() << std::endl;
+	return 1;
+}
+catch(...)
+{
+	fputs("Got unknow exception. Something awful. Exiting", stderr);
+	return 1;
 }
