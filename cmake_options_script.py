@@ -64,6 +64,7 @@ def guess_option(filename, db):
 
 #scriptpath = os.path.dirname(os.path.abspath(sys.argv[1]))
 srcfile = sys.argv[1]
+# raise Exception(r'srcfile ' + srcfile)
 dbfile = find_dffile(os.path.dirname(srcfile))
 dbpath = os.path.dirname(dbfile)
 cache_file = "%s/cached_options.txt" % (dbpath)
@@ -82,10 +83,11 @@ db = load_db(dbfile)
 
 
 
+
 if db:
     if srcfile in db:
         for option in db[srcfile]:
-            print option
+            print(option)
     else:
         for option in guess_option(srcfile, db):
-            print option
+            print(option)
