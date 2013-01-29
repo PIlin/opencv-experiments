@@ -3,10 +3,11 @@
 #include <array>
 #include <functional>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
-#include "calibrator.hpp"
+#include "StateController.hpp"
 #include "track.hpp"
 #include "utils.hpp"
 
@@ -33,6 +34,12 @@ auto center(T r) -> decltype(r.tl())
 {
 	return r.tl() + decltype(r.tl())(r.size().width / 2, r.size().height / 2);
 }
+
+struct LightID
+{
+	uint32_t id;
+	bool operator<(LightID const& other) const { return id < other.id; }
+};
 
 struct RealBlob
 {
@@ -229,32 +236,56 @@ struct MouseCtrl
 
 struct BlobCtrl : public LightControl, public CameraControl
 {
-	virtual void Enable()
+	virtual void Enable(LightID const& id)
 	{
 		PPF();
-		blobs[0]->enabled = true;
+		auto it = blobs.find(id);
+		if (it != blobs.end())
+			it->second->enabled = true;
+		else
+			throw std::invalid_argument("id is not found");
+
 		invalidate();
 	}
-	virtual void Disable()
+	virtual void Disable(LightID const& id)
 	{
 		PPF();
-		blobs[0]->enabled = false;
+		auto it = blobs.find(id);
+		if (it != blobs.end())
+			it->second->enabled = false;
+		else
+			throw std::invalid_argument("id is not found");
+
 		invalidate();
 	}
 
-	virtual bool IsEnabled()
+	virtual bool IsEnabled(LightID const& id)
 	{
-		return blobs[0]->enabled;
+		auto it = blobs.find(id);
+		if (it != blobs.end())
+			return it->second->enabled;
+
+		throw std::invalid_argument("id is not found");
 	}
 
-	virtual bool IsDisabled()
+	virtual bool IsDisabled(LightID const& id)
 	{
-		return !blobs[0]->enabled;
+		auto it = blobs.find(id);
+		if (it != blobs.end())
+			return !it->second->enabled;
+
+		throw std::invalid_argument("id is not found");
 	}
 
-	virtual void UDC()
-	{
 
+	virtual void SetDetectedID(LightID const& id, uint32_t track_id)
+	{
+		PPFX(" " << id.id << " " << track_id);
+	}
+
+	virtual void DetectionFailed(LightID const& id)
+	{
+		PPFX(" " << id.id);
 	}
 
 	///
@@ -275,7 +306,7 @@ struct BlobCtrl : public LightControl, public CameraControl
 	}
 
 	///
-	std::vector<shared_ptr<RealBlob>> blobs;
+	std::map<LightID, shared_ptr<RealBlob>> blobs;
 
 	Mat frame;
 	Mat control_frame;
@@ -292,11 +323,11 @@ struct BlobCtrl : public LightControl, public CameraControl
 		locked(false),
 		force_invalidate(false)
 	{
-		blobs.push_back(make_shared<RealBlob>(Rect{10, 10, 15, 15}));
-		blobs.push_back(make_shared<RealBlob>(Rect{37, 120, 20, 20}));
+		blobs.insert(make_pair(LightID{0}, make_shared<RealBlob>(Rect{10, 10, 15, 15})));
+		blobs.insert(make_pair(LightID{1}, make_shared<RealBlob>(Rect{37, 120, 20, 20})));
 
 		for (auto& sb : blobs)
-			mouseCtrl.add_blob(sb);
+			mouseCtrl.add_blob(sb.second);
 
 		mouseCtrl.on_invalidate = [=](){invalidate();};
 	}
@@ -324,8 +355,9 @@ struct BlobCtrl : public LightControl, public CameraControl
 			control_frame = zeroed(control_frame);
 			frame = zeroed(frame);
 
-			for (auto cb : blobs)
+			for (auto& cbit : blobs)
 			{
+				auto& cb = cbit.second;
 				cv::rectangle(control_frame,
 					cb->pos,
 					(cb->selected ? Scalar(128,255,128) : Scalar(255,255,255)),
@@ -393,9 +425,9 @@ int main()
 	// exit(0);
 
 	// static int counter = 0;
-	bool need_step = false;
+	bool need_step = true;
 	bool calibration = false;
-	auto calib = std::make_shared<Calibrator>(blobCtrl, tracker, blobCtrl, ctc);
+	auto calib = std::make_shared<StateController>(blobCtrl, tracker, blobCtrl, ctc);
 
 	// calib->begin();
 
@@ -413,10 +445,10 @@ int main()
 		if (need_step)
 		{
 			calib->step();
-			need_step = false;
+			// need_step = false;
 		}
 
-		char kp = cv::waitKey(20);
+		char kp = cv::waitKey(100);
 		if (kp == 27)
 		{
 			break;
@@ -426,8 +458,17 @@ int main()
 		{
 		case 'c':
 			{
-				calibration = true;
-				calib->begin();
+				for (auto& it : blobCtrl.blobs)
+				{
+					auto& b = it.second;
+					if (b->selected)
+					{
+						calibration = true;
+						calib->begin_calibration(make_shared<LightID>(it.first));
+						break;
+					}
+				}
+
 				break;
 			}
 		case ' ':

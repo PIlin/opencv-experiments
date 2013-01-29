@@ -27,3 +27,4 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../cvblob/cvBlob"  "${CMAKE_CUR
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../../cvblob/cvBlob")
 target_link_libraries( ${TARGET_NAME} cvblob)
 
+

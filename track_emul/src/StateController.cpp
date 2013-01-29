@@ -12,7 +12,7 @@
 #include <boost/msm/front/state_machine_def.hpp>
 #include <boost/msm/front/euml/euml.hpp>
 
-#include "calibrator.hpp"
+#include "StateController.hpp"
 #include "track.hpp"
 #include "utils.hpp"
 
@@ -39,12 +39,12 @@ namespace msm = boost::msm;
 template <typename Event>
 void enqueue_event(Event event);
 
-// Calibrator* calib = NULL;
+// StateController* calib = NULL;
 
 namespace {
 
 
-	std::list<std::function<void(Calibrator::FSM&)>> enqueued_events;
+	std::list<std::function<void(StateController::FSM&)>> enqueued_events;
 
 
 
@@ -61,12 +61,18 @@ namespace {
 
 	// actions
 
+	STATE_ACTION(Idle_Entry)
+	{
+		PA();
+
+		fsm.calib.allow_calibration = true;
+	}};
 
 	STATE_ACTION(InitIsLightOn_Entry)
 	{
 		PA();
 
-		if (fsm.calib.lc.IsEnabled())
+		if (fsm.calib.lc.IsEnabled(*fsm.calib.light_id_calibration))
 		{
 			cout << "enqueue_event light_on_event" << endl;
 			fsm.enqueue_event(light_on_event);
@@ -77,14 +83,14 @@ namespace {
 	{
 		PA();
 
-		fsm.calib.lc.Disable();
+		fsm.calib.lc.Disable(*fsm.calib.light_id_calibration);
 	}};
 
 	STATE_ACTION(IsLightOff_Entry)
 	{
 		PA();
 
-		if (fsm.calib.lc.IsDisabled())
+		if (fsm.calib.lc.IsDisabled(*fsm.calib.light_id_calibration))
 		{
 			fsm.calib.wait_counter = 0;
 
@@ -95,7 +101,7 @@ namespace {
 
 	STATE_ACTION(Wait_Entry)
 	{
-		Calibrator& c = fsm.calib;
+		StateController& c = fsm.calib;
 
 		++c.wait_counter;
 
@@ -112,7 +118,7 @@ namespace {
 	{
 		PA();
 
-		if (fsm.calib.lc.IsEnabled())
+		if (fsm.calib.lc.IsEnabled(*fsm.calib.light_id_calibration))
 		{
 			cout << "enqueue_event light_on_event" << endl;
 			fsm.enqueue_event(light_on_event);
@@ -123,7 +129,7 @@ namespace {
 	{
 		PA();
 
-		Calibrator& c = fsm.calib;
+		StateController& c = fsm.calib;
 
 		++c.searches_counter;
 
@@ -151,20 +157,23 @@ namespace {
 	{
 		PA();
 
-		Calibrator& c = fsm.calib;
+		StateController& c = fsm.calib;
 		c.light_found();
 	}};
 
 	STATE_ACTION(Error_Entry)
 	{
 		PA();
+
+		StateController& c = fsm.calib;
+		c.light_not_found();
 	}};
 
 	ACTION(LightOn_action)
 	{
 		// cout << "LightOn_action" << endl;
 		PA();
-		fsm.calib.lc.Enable();
+		fsm.calib.lc.Enable(*fsm.calib.light_id_calibration);
 	}};
 
 	ACTION(UDC_action)
@@ -177,7 +186,7 @@ namespace {
 
 
 	// states
-	BOOST_MSM_EUML_STATE((),Idle)
+	BOOST_MSM_EUML_STATE((Idle_Entry),Idle)
 	BOOST_MSM_EUML_STATE((),InitLightOn)
 	BOOST_MSM_EUML_STATE((InitIsLightOn_Entry),InitIsLightOn)
 	BOOST_MSM_EUML_STATE((LightOff_Entry),LightOff)
@@ -190,7 +199,7 @@ namespace {
 	BOOST_MSM_EUML_STATE((Error_Entry),Error)
 
 
-	struct calibrator_fsm_ : public msm::front::state_machine_def<calibrator_fsm_>
+	struct StateController_fsm_ : public msm::front::state_machine_def<StateController_fsm_>
 	{
 		typedef decltype(Idle) initial_state;
 
@@ -222,13 +231,13 @@ namespace {
 				<< " on event " << typeid(e).name() << std::endl;
 		}
 
-		calibrator_fsm_(Calibrator& calibrator) :
-			calib(calibrator)
+		StateController_fsm_(StateController& StateController) :
+			calib(StateController)
 		{
-			PPFX(&calibrator);
+			PPFX(&StateController);
 		}
 
-		Calibrator& calib;
+		StateController& calib;
 	};
 
 	// BOOST_MSM_EUML_TRANSITION_TABLE((
@@ -249,19 +258,19 @@ namespace {
 	//                             //configure_ << no_configure_//, // configuration
 	//                             //transition << no_transition_ // no_transition handler
 	//                             ),
-	//                           calibrator_fsm_) //fsm name
+	//                           StateController_fsm_) //fsm name
 
-	typedef msm::back::state_machine<calibrator_fsm_/*, msm::back::queue_container_circular*/> calibrator_fsm;
+	typedef msm::back::state_machine<StateController_fsm_/*, msm::back::queue_container_circular*/> StateController_fsm;
 
 
 }
 
-struct Calibrator::FSM
+struct StateController::FSM
 {
-	FSM(Calibrator& c) :
+	FSM(StateController& c) :
 		// fsm(boost::ref(c))
-		// fsm(make_unique<calibrator_fsm>())
-		fsm(make_unique<calibrator_fsm>(std::ref(c)))
+		// fsm(make_unique<StateController_fsm>())
+		fsm(make_unique<StateController_fsm>(std::ref(c)))
 	{
 		PPFX(&c);
 		// fsm.get_message_queue().set_capacity(1);
@@ -269,19 +278,19 @@ struct Calibrator::FSM
 
 	~FSM() { PPF(); }
 
-	calibrator_fsm& operator()()
+	StateController_fsm& operator()()
 	{
 		return *fsm;
 	}
 
-	std::unique_ptr<calibrator_fsm> fsm;
+	std::unique_ptr<StateController_fsm> fsm;
 
 };
 
 template <typename Event>
 void enqueue_event(Event event)
 {
-	auto f = [=](Calibrator::FSM& fsm)
+	auto f = [=](StateController::FSM& fsm)
 	{
 		fsm().process_event(event);
 	};
@@ -290,7 +299,7 @@ void enqueue_event(Event event)
 }
 
 
-Calibrator::Calibrator(LightControl& lc, Tracker& tr, CameraControl& cc, CameraTrackerControl& ctc) :
+StateController::StateController(LightControl& lc, Tracker& tr, CameraControl& cc, CameraTrackerControl& ctc) :
 	lc(lc),
 	tracker(tr),
 	cc(cc),
@@ -299,31 +308,39 @@ Calibrator::Calibrator(LightControl& lc, Tracker& tr, CameraControl& cc, CameraT
 	wait_counter(0),
 	wait_max(5),
 	searches_counter(0),
-	searches_max(0),
-	done(false)
+	searches_max(0)
 {
 	// calib = this;
 }
 
-Calibrator::~Calibrator()
+StateController::~StateController()
 {
 	PPF();
 }
 
-Calibrator::FSM& Calibrator::fsm()
+StateController::FSM& StateController::fsm()
 {
 	return *fsm_;
 }
 
-void Calibrator::begin()
+bool StateController::begin_calibration(std::shared_ptr<LightID> id)
 {
-	//fsm()().start();
+	if (!allow_calibration)
+		return false;
+
+	light_id_calibration = id;
+
+
 	fsm()().enqueue_event(calibrate_event);
 	wait_counter = 0;
 	searches_counter = 0;
+
+	allow_calibration = false;
+
+	return true;
 }
 
-bool Calibrator::step()
+bool StateController::step()
 {
 	// if (fsm().get_message_queue_size())
 	if (!enqueued_events.empty())
@@ -350,26 +367,34 @@ bool Calibrator::step()
 	return false;
 }
 
-bool Calibrator::is_done()
-{
-	return done;
-}
-
-bool Calibrator::search_light()
+bool StateController::search_light()
 {
 	PPF();
 	found_ids = tracker.detect(wait_max);
 	return (found_ids.size() == 1);
 }
 
-void Calibrator::light_found()
+void StateController::light_found()
 {
 	PPF();
+	assert(found_ids.size() == 1);
 	tracker.save_detected(found_ids);
-	done = true;
+
+	lc.SetDetectedID(*light_id_calibration, found_ids[0]);
+
+	light_id_calibration.reset();
 }
 
-void pstate(calibrator_fsm const& p)
+void StateController::light_not_found()
+{
+	PPF();
+
+	lc.DetectionFailed(*light_id_calibration);
+
+	light_id_calibration.reset();
+}
+
+void pstate(StateController_fsm const& p)
 {
 	cout << " -> " << *p.current_state() << endl;
 }
@@ -383,10 +408,10 @@ void fsm_test()
 	// } lc;
 
 	// Tracker tr;
-	// Calibrator c(lc, tr);
+	// StateController c(lc, tr);
 
 
-	// calibrator_fsm fsm;
+	// StateController_fsm fsm;
 
 	// fsm.start(); pstate(fsm);
 	// fsm.process_event(step_event); pstate(fsm);

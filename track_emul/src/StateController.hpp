@@ -1,4 +1,4 @@
-#ifndef CALIBRATOR_HPP__
+#ifndef StateController_HPP__
 #define CALIBRAOTR_HPP__
 
 #include "track.hpp"
@@ -6,14 +6,19 @@
 
 void fsm_test();
 
+struct LightID;
+
 class LightControl
 {
 public:
-	virtual void Enable() = 0;
-	virtual void Disable() = 0;
+	virtual void Enable(LightID const& id) = 0;
+	virtual void Disable(LightID const& id) = 0;
 
-	virtual bool IsEnabled() = 0;
-	virtual bool IsDisabled() = 0;
+	virtual bool IsEnabled(LightID const& id) = 0;
+	virtual bool IsDisabled(LightID const& id) = 0;
+
+	virtual void SetDetectedID(LightID const& id, uint32_t track_id) = 0;
+	virtual void DetectionFailed(LightID const& id) = 0;
 
 protected:
 	virtual ~LightControl() {}
@@ -39,21 +44,22 @@ protected:
 	virtual ~CameraTrackerControl() {}
 };
 
-class Calibrator
+
+
+class StateController
 {
 public:
-	Calibrator(LightControl& lc, Tracker& tr, CameraControl& cc, CameraTrackerControl& ctc);
+	StateController(LightControl& lc, Tracker& tr, CameraControl& cc, CameraTrackerControl& ctc);
 
-	~Calibrator();
+	~StateController();
 
-	void begin();
+	bool begin_calibration(std::shared_ptr<LightID> id);
 
 	bool step();
-	bool is_done();
-
 
 	bool search_light();
 	void light_found();
+	void light_not_found();
 
 	LightControl& lc;
 	Tracker& tracker;
@@ -70,7 +76,8 @@ public:
 	int searches_counter;
 	int searches_max;
 
-	bool done;
+	bool allow_calibration;
+	std::shared_ptr<LightID> light_id_calibration;
 
 	std::vector<uint32_t> found_ids;
 };
