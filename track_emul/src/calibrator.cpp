@@ -1,3 +1,4 @@
+#include <cassert>
 #include <list>
 #include <vector>
 #include <iostream>
@@ -31,7 +32,7 @@ namespace msm = boost::msm;
 template <typename Event>
 void enqueue_event(Event event);
 
-Calibrator* calib;
+Calibrator* calib = NULL;
 
 namespace {
 
@@ -57,19 +58,27 @@ namespace {
 		cout << "Dark_Entry" << endl;
 
 		//Calibrator& c = fsm.calib;
+		assert(calib);
 		Calibrator& c = *calib;
 		c.lc.Disable();
+		c.cc.Lock();
 
 		c.wait_counter = 0;
 	}};
 
 	STATE_ACTION(Wait_Entry)
 	{
-		cout << "Wait_Entry" << endl;
 		// Calibrator& c = fsm.calib;
+		assert(calib);
 		Calibrator& c = *calib;
 
+
+		c.cc.UpdateFrame();
+
 		++c.wait_counter;
+
+		PPFX(c.wait_counter);
+
 		if (c.wait_counter >= c.wait_max)
 		{
 			//fsm.enqueue_event(wait_done);
@@ -82,7 +91,10 @@ namespace {
 		cout << "CheckLight_Entry" << endl;
 
 		// Calibrator& c = fsm.calib;
+		assert(calib);
 		Calibrator& c = *calib;
+
+		c.cc.Unlock();
 
 		++c.searches_counter;
 
@@ -111,8 +123,14 @@ namespace {
 		cout << "Found_Entry" << endl;
 
 		// Calibrator& c = fsm.calib;
+		assert(calib);
 		Calibrator& c = *calib;
 		c.light_found();
+	}};
+
+	STATE_ACTION(Error_Entry)
+	{
+		cout << "Error_Entry" << endl;
 	}};
 
 	ACTION(LightOn)
@@ -120,6 +138,7 @@ namespace {
 		cout << "LightOn" << endl;
 
 		// Calibrator& c = fsm.calib;
+		assert(calib);
 		Calibrator& c = *calib;
 		c.lc.Enable();
 	}};
@@ -132,17 +151,17 @@ namespace {
 	BOOST_MSM_EUML_STATE((Wait_Entry),Wait)
 	BOOST_MSM_EUML_STATE((CheckLight_Entry),CheckLight)
 	BOOST_MSM_EUML_STATE((Found_Entry),Found)
-	BOOST_MSM_EUML_STATE((),Error)
+	BOOST_MSM_EUML_STATE((Error_Entry),Error)
 
 
-	/*struct calibrator_fsm_ : public msm::front::state_machine_def<calibrator_fsm_>
+	struct calibrator_fsm_ : public msm::front::state_machine_def<calibrator_fsm_>
 	{
 		typedef decltype(InitLight) initial_state;
 
 		BOOST_MSM_EUML_DECLARE_TRANSITION_TABLE((
 			InitLight + step_event / LightOn == Dark,
 			Dark + step_event == Wait,
-			Wait + wait_continue == Wait,
+			Wait + step_event == Wait,
 			Wait + wait_done / LightOn == CheckLight,
 			CheckLight + check_found == Found,
 			CheckLight + check_again == Dark,
@@ -156,34 +175,34 @@ namespace {
 				<< " on event " << typeid(e).name() << std::endl;
 		}
 
-		calibrator_fsm_(Calibrator& calibrator) :
-			calib(calibrator)
-		{
-			PPFX(&calibrator);
-		}
+		// calibrator_fsm_(Calibrator& calibrator) :
+		// 	calib(calibrator)
+		// {
+		// 	PPFX(&calibrator);
+		// }
 
-		Calibrator& calib;
-	};*/
+		// Calibrator& calib;
+	};
 
-	BOOST_MSM_EUML_TRANSITION_TABLE((
-			InitLight + step_event / LightOn == Dark,
-			Dark + step_event == Wait,
-			Wait + wait_continue == Wait,
-			Wait + wait_done / LightOn == CheckLight,
-			CheckLight + check_found == Found,
-			CheckLight + check_again == Dark,
-			CheckLight + check_timeout == Error
-			), transition_table)
+	// BOOST_MSM_EUML_TRANSITION_TABLE((
+	// 		InitLight + step_event / LightOn == Dark,
+	// 		Dark + step_event == Wait,
+	// 		Wait + wait_continue == Wait,
+	// 		Wait + wait_done / LightOn == CheckLight,
+	// 		CheckLight + check_found == Found,
+	// 		CheckLight + check_again == Dark,
+	// 		CheckLight + check_timeout == Error
+	// 		), transition_table)
 
-	BOOST_MSM_EUML_DECLARE_STATE_MACHINE(( transition_table, //STT
-	                            init_ << InitLight, // Init State
-	                            no_action, // Entry
-	                            no_action, // Exit
-	                            attributes_ << no_attributes_//, // Attributes
-	                            //configure_ << no_configure_//, // configuration
-	                            //transition << no_transition_ // no_transition handler
-	                            ),
-	                          calibrator_fsm_) //fsm name
+	// BOOST_MSM_EUML_DECLARE_STATE_MACHINE(( transition_table, //STT
+	//                             init_ << InitLight, // Init State
+	//                             no_action, // Entry
+	//                             no_action, // Exit
+	//                             attributes_ << no_attributes_//, // Attributes
+	//                             //configure_ << no_configure_//, // configuration
+	//                             //transition << no_transition_ // no_transition handler
+	//                             ),
+	//                           calibrator_fsm_) //fsm name
 
 	typedef msm::back::state_machine<calibrator_fsm_/*, msm::back::queue_container_circular*/> calibrator_fsm;
 
@@ -193,21 +212,23 @@ namespace {
 struct Calibrator::FSM
 {
 	FSM(Calibrator& c) :
-		//fsm(boost::ref(c))
-		fsm()
+		// fsm(boost::ref(c))
+		fsm(make_unique<calibrator_fsm>())
 	{
 		PPFX(&c);
-		//fsm.get_message_queue().set_capacity(1);
+		// fsm.get_message_queue().set_capacity(1);
 	}
+
+	~FSM() { PPF(); }
 
 	calibrator_fsm& operator()()
 	{
-		return fsm;
+		return *fsm;
 	}
 
-	calibrator_fsm fsm;
-};
+	std::unique_ptr<calibrator_fsm> fsm;
 
+};
 
 template <typename Event>
 void enqueue_event(Event event)
@@ -221,10 +242,11 @@ void enqueue_event(Event event)
 }
 
 
-Calibrator::Calibrator(LightControl& lc, Tracker& tr) :
+Calibrator::Calibrator(LightControl& lc, Tracker& tr, CameraControl& cc) :
 	lc(lc),
 	tracker(tr),
-	fsm(FSM(*this)),
+	cc(cc),
+	fsm_(make_unique<FSM>(*this)),
 	wait_counter(0),
 	wait_max(5),
 	searches_counter(0),
@@ -234,19 +256,29 @@ Calibrator::Calibrator(LightControl& lc, Tracker& tr) :
 	calib = this;
 }
 
+Calibrator::~Calibrator()
+{
+	PPF();
+}
+
+Calibrator::FSM& Calibrator::fsm()
+{
+	return *fsm_;
+}
+
 void Calibrator::begin()
 {
-	fsm().start();
+	fsm()().start();
 	wait_counter = 0;
 	searches_counter = 0;
 }
 
 bool Calibrator::step()
 {
-	//if (fsm().get_message_queue_size())
+	// if (fsm().get_message_queue_size())
 	if (!enqueued_events.empty())
 	{
-		//PPFX(" enqueued events count" << fsm().get_message_queue_size());
+		// PPFX(" enqueued events count" << fsm().get_message_queue_size());
 		PPFX(" enqueued events count" << enqueued_events.size());
 
 		// while (fsm().get_message_queue_size())
@@ -254,7 +286,7 @@ bool Calibrator::step()
 
 		while (!enqueued_events.empty())
 		{
-			enqueued_events.front()(fsm);
+			enqueued_events.front()(fsm());
 			enqueued_events.pop_front();
 		}
 	}
@@ -262,7 +294,7 @@ bool Calibrator::step()
 	{
 		PPFX(" step event");
 
-		fsm().process_event(step_event);
+		fsm()().process_event(step_event);
 	}
 
 	return false;
@@ -294,26 +326,26 @@ void pstate(calibrator_fsm const& p)
 
 void fsm_test()
 {
-	struct LC : public LightControl
-	{
-		void Enable() { PPF(); }
-		void Disable() { PPF(); }
-	} lc;
+	// struct LC : public LightControl
+	// {
+	// 	void Enable() { PPF(); }
+	// 	void Disable() { PPF(); }
+	// } lc;
 
-	Tracker tr;
-	Calibrator c(lc, tr);
+	// Tracker tr;
+	// Calibrator c(lc, tr);
 
 
-	calibrator_fsm fsm;
+	// calibrator_fsm fsm;
 
-	fsm.start(); pstate(fsm);
-	fsm.process_event(step_event); pstate(fsm);
-	fsm.process_event(step_event); pstate(fsm);
-	fsm.process_event(step_event); pstate(fsm);
-	fsm.process_event(wait_continue); pstate(fsm);
-	fsm.process_event(wait_done); pstate(fsm);
-	fsm.process_event(check_found); pstate(fsm);
-	fsm.process_event(step_event); pstate(fsm);
+	// fsm.start(); pstate(fsm);
+	// fsm.process_event(step_event); pstate(fsm);
+	// fsm.process_event(step_event); pstate(fsm);
+	// fsm.process_event(step_event); pstate(fsm);
+	// fsm.process_event(wait_continue); pstate(fsm);
+	// fsm.process_event(wait_done); pstate(fsm);
+	// fsm.process_event(check_found); pstate(fsm);
+	// fsm.process_event(step_event); pstate(fsm);
 
 
 }

@@ -17,7 +17,8 @@ std::map<K, std::shared_ptr<V>> deep_copy(std::map<K, V*> const& in)
 
 	for (auto& it : in)
 	{
-		out.emplace(std::make_pair(it.first, std::make_shared<V>(*it.second)));
+		// out.emplace(std::make_pair(it.first, std::make_shared<V>(*it.second)));
+		out.insert(std::make_pair(it.first, std::make_shared<V>(*it.second)));
 	}
 
 	return out;

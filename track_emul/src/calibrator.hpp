@@ -16,11 +16,23 @@ protected:
 	virtual ~LightControl() {}
 };
 
+class CameraControl
+{
+public:
+	virtual void Lock() = 0;
+	virtual void Unlock() = 0;
+	virtual void UpdateFrame() = 0;
+
+protected:
+	virtual ~CameraControl() {}
+};
 
 class Calibrator
 {
 public:
-	Calibrator(LightControl& lc, Tracker& tr);
+	Calibrator(LightControl& lc, Tracker& tr, CameraControl& cc);
+
+	~Calibrator();
 
 	void begin();
 
@@ -33,9 +45,11 @@ public:
 
 	LightControl& lc;
 	Tracker& tracker;
+	CameraControl& cc;
 
 	class FSM;
-	FSM&& fsm;
+	std::unique_ptr<FSM> fsm_;
+	FSM& fsm();
 
 	int wait_counter;
 	int wait_max;

@@ -227,7 +227,7 @@ struct MouseCtrl
 } mouseCtrl;
 
 
-struct BlobCtrl : public LightControl
+struct BlobCtrl : public LightControl, public CameraControl
 {
 	virtual void Enable()
 	{
@@ -243,17 +243,39 @@ struct BlobCtrl : public LightControl
 	}
 
 	///
+
+	virtual void Lock()
+	{
+		locked = true;
+	}
+
+	virtual void Unlock()
+	{
+		locked = false;
+	}
+
+	virtual void UpdateFrame()
+	{
+		force_invalidate = true;
+	}
+
+	///
 	std::vector<shared_ptr<RealBlob>> blobs;
 
 	Mat frame;
 	Mat control_frame;
 
 	bool invalidated;
+	bool locked;
+	bool force_invalidate;
+
 
 	BlobCtrl(Size mat_size) :
 		frame(mat_size, CV_8UC1),
 		control_frame(mat_size, CV_8UC3),
-		invalidated(true)
+		invalidated(true),
+		locked(false),
+		force_invalidate(false)
 	{
 		blobs.push_back(make_shared<RealBlob>(Rect{10, 10, 15, 15}));
 		blobs.push_back(make_shared<RealBlob>(Rect{37, 120, 20, 20}));
@@ -272,6 +294,16 @@ struct BlobCtrl : public LightControl
 	bool draw()
 	{
 		bool res = false;
+
+		if (locked && !force_invalidate)
+			return false;
+
+		if (force_invalidate)
+		{
+			invalidated = true;
+			force_invalidate = false;
+		}
+
 		if (invalidated)
 		{
 			control_frame = zeroed(control_frame);
@@ -327,9 +359,13 @@ int main()
 	// fsm_test();
 	// exit(0);
 
+	// static int counter = 0;
 	bool need_step = false;
-	bool calibration = true;
-	Calibrator calib(blobCtrl, tracker);
+	bool calibration = false;
+	//Calibrator calib(blobCtrl, tracker);
+	auto calib = std::make_shared<Calibrator>(blobCtrl, tracker, blobCtrl);
+
+	// calib->begin();
 
 	for (auto& w : wins)
 	{
@@ -346,9 +382,9 @@ int main()
 		{
 			need_step = false;
 
-			calib.step();
+			calib->step();
 
-			if (calib.is_done())
+			if (calib->is_done())
 			{
 				calibration = false;
 			}
@@ -380,7 +416,7 @@ int main()
 		case 'c':
 			{
 				calibration = true;
-				calib.begin();
+				calib->begin();
 				break;
 			}
 		case ' ':
@@ -390,6 +426,10 @@ int main()
 				break;
 			}
 		}
+
+		// ++counter;
+		// if (counter == 1)
+		// 	need_step = true;
 	}
 
 
