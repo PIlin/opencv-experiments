@@ -145,6 +145,16 @@ struct CTC : public CameraTrackerControl
 		draw();
 	}
 
+	virtual std::vector<uint32_t> detect(int const inactive_time) const
+	{
+		return tracker->detect(inactive_time);
+	}
+
+	virtual void save_detected(std::vector<uint32_t> ids)
+	{
+		return tracker->save_detected(ids);
+	}
+
 	/////////////////
 
 
@@ -246,7 +256,7 @@ int main ( int argc, char **argv )
 
 	LightController lc;
 
-	StateController sc(lc, *(ctc.tracker), ctc);
+	StateController sc(lc, ctc);
 
 
 	for (auto& w : wins)

@@ -29,6 +29,9 @@ class CameraTrackerControl
 public:
 	virtual void UDC() = 0;
 
+	virtual std::vector<uint32_t> detect(int const inactive_time) const = 0;
+	virtual void save_detected(std::vector<uint32_t> ids) = 0;
+
 protected:
 	virtual ~CameraTrackerControl() {}
 };
@@ -38,7 +41,7 @@ protected:
 class StateController
 {
 public:
-	StateController(LightControl& lc, Tracker& tr, CameraTrackerControl& ctc);
+	StateController(LightControl& lc, CameraTrackerControl& ctc);
 
 	~StateController();
 
@@ -51,7 +54,6 @@ public:
 	void light_not_found();
 
 	LightControl& lc;
-	Tracker& tracker;
 	CameraTrackerControl& ctc;
 
 	class FSM;

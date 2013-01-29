@@ -297,9 +297,8 @@ void enqueue_event(Event event)
 }
 
 
-StateController::StateController(LightControl& lc, Tracker& tr, CameraTrackerControl& ctc) :
+StateController::StateController(LightControl& lc, CameraTrackerControl& ctc) :
 	lc(lc),
-	tracker(tr),
 	ctc(ctc),
 	fsm_(make_unique<FSM>(*this)),
 	wait_counter(0),
@@ -367,7 +366,7 @@ bool StateController::step()
 bool StateController::search_light()
 {
 	PPF();
-	found_ids = tracker.detect(wait_max);
+	found_ids = ctc.detect(wait_max);
 	return (found_ids.size() == 1);
 }
 
@@ -375,7 +374,7 @@ void StateController::light_found()
 {
 	PPF();
 	assert(found_ids.size() == 1);
-	tracker.save_detected(found_ids);
+	ctc.save_detected(found_ids);
 
 	lc.SetDetectedID(*light_id_calibration, found_ids[0]);
 
