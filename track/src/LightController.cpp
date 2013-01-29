@@ -65,29 +65,56 @@ private:
 	std::array<uint8_t, 1024> recv_buffer;
 };
 
+class Light
+{
+public:
+	bool enabled;
+};
+
+
 
 void LightController::Enable(LightID const& id)
 {
 	PPFX(id);
+
+	auto it = lightmap.find(id);
+	if (it == lightmap.end())
+		throw std::invalid_argument("id is not found");
+
+	it->second->enabled = true;
+
+	port->writebyte('H');
 }
 
 void LightController::Disable(LightID const& id)
 {
 	PPFX(id);
+
+	auto it = lightmap.find(id);
+	if (it == lightmap.end())
+		throw std::invalid_argument("id is not found");
+
+	it->second->enabled = false;
+
+	port->writebyte('L');
 }
 
 bool LightController::IsEnabled(LightID const& id)
 {
 	PPFX(id);
 
-	return false;
+	auto it = lightmap.find(id);
+	if (it == lightmap.end())
+		throw std::invalid_argument("id is not found");
+
+	return it->second->enabled;
 }
 
 bool LightController::IsDisabled(LightID const& id)
 {
 	PPFX(id);
 
-	return true;
+	return !IsEnabled(id);
 }
 
 void LightController::SetDetectedID(LightID const& id, uint32_t track_id)
@@ -114,17 +141,17 @@ void LightController::poll()
 	}
 
 
-	static char c = 'H';
-	c = (c == 'L' ? 'H' : 'L');
+	// static char c = 'H';
+	// c = (c == 'L' ? 'H' : 'L');
 
-	port->writebyte(c);
+	// port->writebyte(c);
 
 }
 
 LightController::LightController() :
 	port(make_unique<SerialPort>("/dev/tty.usbmodemfd141", 9600, iosrv))
 {
-
+	lightmap.insert(std::make_pair(LightID{0}, make_unique<Light>(Light{false})));
 }
 
 LightController::~LightController()

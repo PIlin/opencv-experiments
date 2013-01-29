@@ -37,9 +37,9 @@ const vector<win> wins = {
 	// {hsv_names[0], 10, 500, WINDOW_AUTOSIZE},
 	// {hsv_names[1], 660, 10, WINDOW_AUTOSIZE},
 	// {hsv_names[2], 660, 500, WINDOW_AUTOSIZE},
-	{hsv_tres[0], 1300, 10, WINDOW_AUTOSIZE},
-	{hsv_tres[1], 1300, 500, WINDOW_AUTOSIZE},
-	{hsv_tres[2], 1500, 500, WINDOW_AUTOSIZE},
+	{hsv_tres[0], 660, 10, WINDOW_AUTOSIZE},
+	{hsv_tres[1], 1300, 10, WINDOW_AUTOSIZE},
+	{hsv_tres[2], 1700, 10, WINDOW_AUTOSIZE},
 	{controls_win_name, 10, 1000, WINDOW_NORMAL}
 };
 
@@ -226,7 +226,7 @@ struct CTC : public CameraTrackerControl
 		tracker->draw_tracks(m);
 		imshow(hsv_tres[1], m);
 
-		m = zeroed(lastFiltered);
+		m = zeroed(lastFrame);
 		tracker->draw_detected(m);
 		imshow(hsv_tres[2], m);
 	}
@@ -288,14 +288,14 @@ int main ( int argc, char **argv ) try
 	{
 		lc.poll();
 
-		// if (!manual || need_step)
-		// {
-		// 	sc.step();
+		if (!manual || need_step)
+		{
+			sc.step();
 
-		// 	need_step = !manual;
-		// }
+			need_step = !manual;
+		}
 
-		char kp = cv::waitKey(200);
+		char kp = cv::waitKey(50);
 		if (kp == 27)
 		{
 			break;
@@ -307,6 +307,11 @@ int main ( int argc, char **argv ) try
 		case 'M':
 			{
 				manual = !manual;
+				break;
+			}
+		case 'c':
+			{
+				sc.begin_calibration(make_shared<LightID>(0));
 				break;
 			}
 		case ' ':

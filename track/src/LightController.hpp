@@ -7,6 +7,8 @@ struct LightID
 {
 	uint32_t id;
 
+	LightID(uint32_t id) : id(id) {}
+
 	bool operator<(LightID const& o) const { return id < o.id; }
 
 
@@ -19,6 +21,8 @@ struct LightID
 };
 
 class SerialPort;
+
+class Light;
 
 class LightController : public LightControl
 {
@@ -43,6 +47,8 @@ public:
 private:
 
 	std::unique_ptr<SerialPort> port;
+
+	std::map<LightID, std::unique_ptr<Light>> lightmap;
 
 };
 
