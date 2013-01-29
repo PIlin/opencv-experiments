@@ -14,7 +14,11 @@ FIND_PACKAGE(Boost REQUIRED)
 file(GLOB_RECURSE SOURCES *.cpp)
 file(GLOB_RECURSE HEADERS *.hpp)
 
-set(CMAKE_CXX_FLAGS "-std=c++11 -stdlib=libc++")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+
+if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+endif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 
 add_executable( ${TARGET_NAME} ${SOURCES} ${HEADERS})
 target_link_libraries( ${TARGET_NAME} ${OpenCV_LIBS})
