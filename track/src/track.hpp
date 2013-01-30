@@ -19,7 +19,7 @@ public:
 
 	void update_tracks(cv::Mat const& frame);
 
-	std::vector<uint32_t> detect(int const inactive_time) const;
+	std::vector<uint32_t> detect(int const inactive_time_min, int const inactive_time_max) const;
 
 	void save_detected(std::vector<uint32_t> ids);
 
@@ -27,6 +27,8 @@ public:
 
 	void draw_detected(cv::Mat & frame) const;
 	void draw_tracks(cv::Mat & frame) const;
+
+	void forget_detected();
 
 	Tracker();
 

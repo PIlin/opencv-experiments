@@ -147,9 +147,9 @@ struct CTC : public CameraTrackerControl
 		draw();
 	}
 
-	virtual std::vector<uint32_t> detect(int const inactive_time) const
+	virtual std::vector<uint32_t> detect(int const inactive_time_min, int const inactive_time_max) const
 	{
-		return tracker->detect(inactive_time);
+		return tracker->detect(inactive_time_min, inactive_time_max);
 	}
 
 	virtual void save_detected(std::vector<uint32_t> ids)
@@ -252,7 +252,14 @@ struct CTC : public CameraTrackerControl
 	std::list<cv::Mat> prev_and_frames;
 };
 
-
+struct CDO : public CalibrationDelayOptions
+{
+public:
+	virtual int min_delay() const { return *trackbars["calib_delay_min"].value; }
+	virtual int max_delay() const { return *trackbars["calib_delay_max"].value; }
+	virtual int search_attempts() const { return *trackbars["calib_search_attempts"].value; }
+	virtual int search_possible_skip_frames() const { return *trackbars["calib_pos_skip_frames"].value; }
+};
 
 
 int main ( int argc, char **argv )  try
@@ -262,7 +269,9 @@ int main ( int argc, char **argv )  try
 
 	LightController lc;
 
-	StateController sc(lc, ctc);
+	CDO cdo;
+
+	StateController sc(lc, ctc, cdo);
 
 	for (auto& w : wins)
 	{
@@ -279,7 +288,10 @@ int main ( int argc, char **argv )  try
 			t(235, "Vmin"), t(255, "Vmax"),
 			t(3, "erode"),
 			t(0, "blur"),
-			t(1, "prev_and")
+			t(0, "prev_and"),
+			t(4, "calib_delay_min"), t(5, "calib_delay_max"),
+			t(0, "calib_search_attempts"),
+			t(1, "calib_pos_skip_frames"),
 		};
 	}
 
@@ -318,6 +330,11 @@ int main ( int argc, char **argv )  try
 		case 'c':
 			{
 				sc.begin_calibration(make_shared<LightID>(0));
+				break;
+			}
+		case 'f':
+			{
+				ctc.tracker->forget_detected();
 				break;
 			}
 		case ' ':

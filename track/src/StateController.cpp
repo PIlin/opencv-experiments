@@ -105,7 +105,7 @@ namespace {
 
 		PAX(c.wait_counter);
 
-		if (c.wait_counter >= c.wait_max)
+		if (c.wait_counter >= c.cdo.max_delay())
 		{
 			//fsm.enqueue_event(wait_done);
 			enqueue_event(wait_done);
@@ -138,7 +138,11 @@ namespace {
 		}
 		else
 		{
-			if (c.searches_counter >= c.searches_max)
+			if (c.searches_skip_frame_counter < c.cdo.search_possible_skip_frames())
+			{
+				++c.searches_skip_frame_counter;
+			}
+			else if (c.searches_counter >= c.cdo.search_attempts())
 			{
 				fsm.enqueue_event(search_timeout_event);
 				// enqueue_event(check_timeout);
@@ -147,6 +151,8 @@ namespace {
 			{
 				fsm.enqueue_event(search_again_event);
 				// enqueue_event(check_again);
+
+				++c.searches_counter;
 			}
 		}
 	}};
@@ -218,6 +224,7 @@ namespace {
 			Check + found_event == Found,
 			Check + search_again_event == LightOff,
 			Check + search_timeout_event == Error,
+			Check + step_event / UDC_action == Check,
 			Found + step_event == Idle,
 			Error + step_event == Idle
 			), transition_table)
@@ -297,14 +304,16 @@ void enqueue_event(Event event)
 }
 
 
-StateController::StateController(LightControl& lc, CameraTrackerControl& ctc) :
+StateController::StateController(LightControl& lc, CameraTrackerControl& ctc, CalibrationDelayOptions& cdo) :
 	lc(lc),
 	ctc(ctc),
+	cdo(cdo),
 	fsm_(make_unique<FSM>(*this)),
 	wait_counter(0),
-	wait_max(5),
+	// wait_max(5),
 	searches_counter(0),
-	searches_max(0)
+	searches_skip_frame_counter(0)
+	// searches_max(5)
 {
 
 }
@@ -330,6 +339,7 @@ bool StateController::begin_calibration(std::shared_ptr<LightID> id)
 	fsm()().enqueue_event(calibrate_event);
 	wait_counter = 0;
 	searches_counter = 0;
+	searches_skip_frame_counter = 0;
 
 	allow_calibration = false;
 
@@ -366,7 +376,7 @@ bool StateController::step()
 bool StateController::search_light()
 {
 	PPF();
-	found_ids = ctc.detect(wait_max);
+	found_ids = ctc.detect(cdo.min_delay(), cdo.max_delay());
 	return (found_ids.size() == 1);
 }
 

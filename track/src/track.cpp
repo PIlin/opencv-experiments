@@ -73,7 +73,10 @@ public:
 		for (auto const& d : detected)
 		{
 			if (tracks.find(d) == tracks.end())
+			{
+				cout << "track lost " << d << endl;
 				removed.push_back(d);
+			}
 		}
 		for (auto const& d : removed)
 		{
@@ -82,7 +85,7 @@ public:
 		}
 	}
 
-	std::vector<uint32_t> detect(int const inactive_time) const
+	std::vector<uint32_t> detect(int const inactive_time_min, int const inactive_time_max) const
 	{
 		PPF();
 
@@ -97,7 +100,10 @@ public:
 				if (old_p != old_tracks.end())
 				{
 					cout << "in old" << endl;
-					if (old_p->second->inactive == inactive_time)
+
+					auto in = [](int v, int a, int b) { return a <= v && v <= b; };
+
+					if (in(old_p->second->inactive, inactive_time_min, inactive_time_max))
 					{
 						cout << "old inactive " << old_p->second->inactive << endl;
 
@@ -172,12 +178,14 @@ public:
 
 
 void Tracker::update_tracks(cv::Mat const& frame) { return impl->update_tracks(frame); }
-std::vector<uint32_t> Tracker::detect(int const inactive_time) const { return impl->detect(inactive_time); }
+std::vector<uint32_t> Tracker::detect(int const inactive_time_min, int const inactive_time_max) const { return impl->detect(inactive_time_min, inactive_time_max); }
 void Tracker::save_detected(std::vector<uint32_t> ids) { return impl->save_detected(ids); }
 std::vector<DtBlob> Tracker::get_all_detected() const { return impl->get_all_detected(); }
 
 void Tracker::draw_detected(cv::Mat & frame) const { return impl->draw_detected(frame); }
 void Tracker::draw_tracks(cv::Mat & frame) const { return impl->draw_tracks(frame); }
+
+void Tracker::forget_detected() { impl->detected.clear(); }
 
 Tracker::Tracker() :
 	impl(make_shared<Tracker_impl>(*this))
