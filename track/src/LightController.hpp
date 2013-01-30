@@ -20,8 +20,6 @@ struct LightID
 	}
 };
 
-class SerialPort;
-
 class Light;
 
 class LightController : public LightControl
@@ -46,9 +44,15 @@ public:
 
 private:
 
-	std::unique_ptr<SerialPort> port;
+
+
+
 
 	std::map<LightID, std::unique_ptr<Light>> lightmap;
+
+	class Impl;
+	friend class Impl;
+	std::unique_ptr<Impl> impl;
 
 };
 

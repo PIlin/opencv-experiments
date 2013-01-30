@@ -25,7 +25,7 @@ std::unique_ptr<T> make_unique( Args&& ...args )
 
 #define PF() do { std::cout << __FUNCTION__ << std::endl; } while(0)
 #define PPF() do { std::cout << __PRETTY_FUNCTION__ << std::endl; } while(0)
-#define PPFX(x) do { std::cout << __PRETTY_FUNCTION__ << x << std::endl; } while(0)
+#define PPFX(x) do { std::cout << __PRETTY_FUNCTION__ << " " << x << std::endl; } while(0)
 
 
 #endif
