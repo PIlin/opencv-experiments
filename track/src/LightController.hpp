@@ -10,6 +10,7 @@ struct LightID
 	LightID(uint32_t id) : id(id) {}
 
 	bool operator<(LightID const& o) const { return id < o.id; }
+	bool operator==(LightID const& o) const { return id == o.id; }
 
 
 	template <typename ostream_T>

@@ -20,7 +20,8 @@ using namespace std;
 
 const int scale = 1;
 
-const string main_win_name = "cc";
+const string main_win_name = "main";
+const string prev_win_name = "prev";
 const string controls_win_name = "con_win";
 const string hsv_names[] = {"hsv 0", "hsv 1", "hsv 2"};
 const string hsv_tres[] = {"hsv tres", "hsv tres dil", "hsv tres hough"};
@@ -34,7 +35,7 @@ struct win
 
 const vector<win> wins = {
 	{main_win_name, 10, 10, WINDOW_AUTOSIZE},
-	// {hsv_names[0], 10, 500, WINDOW_AUTOSIZE},
+	{prev_win_name, 660, 500, WINDOW_AUTOSIZE},
 	// {hsv_names[1], 660, 10, WINDOW_AUTOSIZE},
 	// {hsv_names[2], 660, 500, WINDOW_AUTOSIZE},
 	{hsv_tres[0], 660, 10, WINDOW_AUTOSIZE},
@@ -129,6 +130,7 @@ struct CTC : public CameraTrackerControl
 {
 	virtual void UDC()
 	{
+		prevFrame = lastFrame.clone();
 		lastFrame = camera->getCamFrame();
 		if (scale != 1)
 		{
@@ -220,6 +222,7 @@ struct CTC : public CameraTrackerControl
 	void draw() const
 	{
 		imshow(main_win_name, lastFrame);
+		imshow(prev_win_name, prevFrame);
 		imshow(hsv_tres[0], lastFiltered);
 
 		Mat m = zeroed(lastFrame);
@@ -234,12 +237,15 @@ struct CTC : public CameraTrackerControl
 
 	CTC (std::unique_ptr<Camera> cam, std::unique_ptr<Tracker> tracker) :
 		camera(std::move(cam)),
-		tracker(std::move(tracker))
-	{}
+		tracker(std::move(tracker)),
+		lastFrame(Mat::zeros(Size(1,1), CV_8UC3))
+	{
+	}
 
 	std::unique_ptr<Camera> camera;
 	std::unique_ptr<Tracker> tracker;
 	Mat lastFrame;
+	Mat prevFrame;
 	Mat lastFiltered;
 
 	int scale = 1;
@@ -249,14 +255,14 @@ struct CTC : public CameraTrackerControl
 
 
 
-int main ( int argc, char **argv ) // try
+int main ( int argc, char **argv )  try
 {
-	// CTC ctc(make_unique<WebCamera>(), make_unique<Tracker>());
+	CTC ctc(make_unique<WebCamera>(), make_unique<Tracker>());
 	// CTC ctc(make_unique<KinectCamera>());
 
 	LightController lc;
 
-	// StateController sc(lc, ctc);
+	StateController sc(lc, ctc);
 
 	for (auto& w : wins)
 	{
@@ -288,14 +294,14 @@ int main ( int argc, char **argv ) // try
 	{
 		lc.poll();
 
-		// if (!manual || need_step)
-		// {
-		// 	sc.step();
+		if (!manual || need_step)
+		{
+			sc.step();
 
-		// 	need_step = !manual;
-		// }
+			need_step = !manual;
+		}
 
-		char kp = cv::waitKey(50);
+		char kp = cv::waitKey(20);
 		if (kp == 27)
 		{
 			break;
@@ -311,7 +317,7 @@ int main ( int argc, char **argv ) // try
 			}
 		case 'c':
 			{
-				// sc.begin_calibration(make_shared<LightID>(0));
+				sc.begin_calibration(make_shared<LightID>(0));
 				break;
 			}
 		case ' ':
@@ -325,13 +331,13 @@ int main ( int argc, char **argv ) // try
 
 	return 0;
 }
-// catch(std::exception& e)
-// {
-// 	std::cerr << "Got exception\n" << e.what() << std::endl;
-// 	return 1;
-// }
-// catch(...)
-// {
-// 	fputs("Got unknow exception. Something awful. Exiting", stderr);
-// 	return 1;
-// }
+catch(std::exception& e)
+{
+	std::cerr << "Got exception\n" << e.what() << std::endl;
+	return 1;
+}
+catch(...)
+{
+	fputs("Got unknow exception. Something awful. Exiting", stderr);
+	return 1;
+}

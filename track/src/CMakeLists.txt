@@ -22,7 +22,9 @@ endif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 add_executable( ${TARGET_NAME} ${SOURCES} ${HEADERS})
 target_link_libraries( ${TARGET_NAME} ${OpenCV_LIBS})
 
+include_directories(${Boost_INCLUDE_DIRS})
+
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../cvblob/cvBlob"  "${CMAKE_CURRENT_BINARY_DIR}/cvblob")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../../cvblob/cvBlob")
-target_link_libraries( ${TARGET_NAME} cvblob ${Boost_LIBRARIES})
+target_link_libraries( ${TARGET_NAME} cvblob ${Boost_LIBRARIES} ${OpenCV_LIBRARIES})
 

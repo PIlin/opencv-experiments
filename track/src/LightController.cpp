@@ -122,11 +122,23 @@ public:
 		std::shared_ptr<ba::deadline_timer> timer;
 	};
 
-	Impl(LightController& owner) :
+	Impl(LightController& owner) try:
 		owner(owner),
-		port(make_unique<SerialPort>("/dev/tty.usbmodemfa141", 9600, iosrv,
+		port(make_unique<SerialPort>("/dev/tty.usbmodemfd141", 9600, iosrv,
 			[this](std::vector<uint8_t>& data) { on_serial_data_receive(data); }))
-	{}
+	{
+
+	}
+	catch(std::exception& e)
+	{
+		std::cerr << "LightController::Impl Got exception\n" << e.what() << std::endl;
+		throw;
+	}
+	catch(...)
+	{
+		fputs("LightController::Impl Got unknow exception.", stderr);
+		throw;
+	}
 
 	void on_serial_data_receive(std::vector<uint8_t>& data)
 	{
@@ -140,9 +152,11 @@ public:
 
 			if (it != commands.end())
 			{
+				PPFX("lightmap size " << owner.lightmap.size() );
+
 				Command & com = it->com;
 				auto lit = owner.lightmap.find(com.id);
-				if (lit == owner.lightmap.end())
+				if (lit != owner.lightmap.end())
 				{
 					std::cout << "Found command answer";
 
@@ -164,7 +178,12 @@ public:
 
 	void on_timer_timeout(std::shared_ptr<ba::deadline_timer> timer, boost::system::error_code const& error)
 	{
+		if (error == ba::error::operation_aborted)
+			return;
+
+
 		PPFX(error);
+
 
 		auto it = std::find_if(commands.begin(), commands.end(), [&](TimeredCommand& c) {
 			return c.timer == timer;
@@ -183,15 +202,15 @@ public:
 
 	void enqueue_command(Command com)
 	{
-		port->writebyte(com.com);
-
 		auto timer = std::make_shared<ba::deadline_timer>(iosrv, boost::posix_time::seconds(5));
 
-		commands.back().timer->async_wait([this, timer](boost::system::error_code const& error) {
+		timer->async_wait([this, timer](boost::system::error_code const& error) {
 			this->on_timer_timeout(timer, error);
 		});
 
 		commands.push_back({com, timer});
+
+		port->writebyte(com.com);
 	}
 
 

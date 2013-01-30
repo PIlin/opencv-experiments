@@ -51,7 +51,7 @@ public:
 
 		old_tracks = deep_copy(tracks);
 
-		cvb::cvUpdateTracks(blobs, tracks, 20., 6);
+		cvb::cvUpdateTracks(blobs, tracks, 40., 10);
 
 		{
 			cout << "+++++++++++++++++" << endl;
