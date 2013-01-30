@@ -1,0 +1,25 @@
+{
+	"folders":
+	[
+		{
+			"path": "."
+		}
+	],
+
+
+
+	"settings":
+	{
+		"trim_trailing_white_space_on_save": true,
+
+
+		"sublimeclang_dont_prepend_clang_includes": true,
+		"sublimeclang_options_script": "python ${project_path:ino_opts.py}",
+		"sublimeclang_options":
+		[
+			"-Wno-attributes",
+			"-Wno-builtin-requires-header",
+			"-Wno-unused-command-line-argument"
+		]
+	}
+}
