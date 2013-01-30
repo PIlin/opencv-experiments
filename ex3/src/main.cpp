@@ -262,8 +262,8 @@ struct KinectCamera : public Camera
 
 int main ( int argc, char **argv )
 {
-	// Camera camera = WebCamera();
-	Camera camera = KinectCamera();
+	Camera camera = WebCamera();
+	// Camera camera = KinectCamera();
 
 	for (auto& w : wins)
 	{
