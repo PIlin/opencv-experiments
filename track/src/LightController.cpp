@@ -6,6 +6,8 @@
 
 #include <boost/asio.hpp>
 
+#include <opencv2/opencv.hpp>
+
 namespace ba = boost::asio;
 
 ba::io_service iosrv;
@@ -102,6 +104,10 @@ class Light
 {
 public:
 	bool enabled;
+
+	bool detected;
+
+	TrackID trid;
 };
 
 
@@ -284,7 +290,42 @@ bool LightController::IsDisabled(LightID const& id)
 
 void LightController::SetDetectedID(LightID const& id, uint32_t track_id)
 {
-	PPFX(id << " " << track_id);
+
+
+	auto it = lightmap.find(id);
+
+	if (it != lightmap.end())
+	{
+		PPFX("found light " << id << " new trid " << track_id);
+
+		Light& l = *it->second;
+		l.detected = true;
+		l.trid = track_id;
+	}
+}
+
+void LightController::trackLost(TrackID id)
+{
+	auto it = std::find_if(lightmap.begin(), lightmap.end(),
+		[&](decltype(lightmap)::value_type const& it) -> bool
+		{
+			Light const & l = *it.second;
+			return l.detected && l.trid == id;
+		});
+
+	if (it != lightmap.end())
+	{
+		PPFX("light found id" << it->first);
+
+		Light& l = *it->second;
+
+		l.detected = false;
+		l.trid = 0;
+	}
+	else
+	{
+		PPFX("ligth is not found");
+	}
 }
 
 void LightController::DetectionFailed(LightID const& id)
@@ -312,13 +353,44 @@ void LightController::poll()
 
 }
 
+bool LightController::have_undetected() const
+{
+	auto it = std::find_if(lightmap.begin(), lightmap.end(),
+		[&](decltype(lightmap)::value_type const& it) -> bool
+		{
+			Light const & l = *it.second;
+			return !l.detected;
+		});
+
+	return it != lightmap.end();
+}
+
+LightID LightController::get_undetected() const
+{
+	auto it = std::find_if(lightmap.begin(), lightmap.end(),
+		[&](decltype(lightmap)::value_type const& it) -> bool
+		{
+			Light const & l = *it.second;
+			return !l.detected;
+		});
+
+	if (it != lightmap.end())
+		return it->first;
+
+	throw std::logic_error("there is no undetected lights");
+}
+
 LightController::LightController() :
 	impl(make_unique<Impl>(std::ref(*this)))
 {
-	lightmap.insert(std::make_pair(LightID{0}, make_unique<Light>(Light{false})));
+	lightmap.insert(std::make_pair(LightID{0}, make_unique<Light>(Light{false, false})));
 }
 
 LightController::~LightController()
 {
 
 }
+
+
+
+

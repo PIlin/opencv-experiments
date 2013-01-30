@@ -2,6 +2,7 @@
 #define LIGHT_CONTROLLER_HPP__
 
 #include "StateController.hpp"
+#include "IDetection.hpp"
 
 struct LightID
 {
@@ -23,7 +24,7 @@ struct LightID
 
 class Light;
 
-class LightController : public LightControl
+class LightController : public LightControl, public IDetectionConsumer
 {
 public:
 
@@ -33,27 +34,34 @@ public:
 	virtual bool IsEnabled(LightID const& id);
 	virtual bool IsDisabled(LightID const& id);
 
-	virtual void SetDetectedID(LightID const& id, uint32_t track_id);
+	virtual void SetDetectedID(LightID const& id, TrackID track_id);
 	virtual void DetectionFailed(LightID const& id);
+
+public:
+
+	virtual void trackLost(TrackID id);
 
 public:
 
 	LightController();
 	virtual ~LightController();
 
+	void setDetector(std::weak_ptr<IDetector> d) { detector = d; }
+
 	void poll();
 
+	bool have_undetected() const;
+	LightID get_undetected() const;
+
 private:
-
-
-
-
 
 	std::map<LightID, std::unique_ptr<Light>> lightmap;
 
 	class Impl;
 	friend class Impl;
 	std::unique_ptr<Impl> impl;
+
+	std::weak_ptr<IDetector> detector;
 
 };
 

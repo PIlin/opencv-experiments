@@ -82,14 +82,19 @@ public:
 		{
 			cout << "removing track " << d << " from detected" << endl;
 			detected.erase(d);
+
+			if (auto cons = t.det_cons.lock())
+			{
+				cons->trackLost(d);
+			}
 		}
 	}
 
-	std::vector<uint32_t> detect(int const inactive_time_min, int const inactive_time_max) const
+	std::vector<TrackID> detect(int const inactive_time_min, int const inactive_time_max) const
 	{
 		PPF();
 
-		std::vector<uint32_t> res;
+		std::vector<TrackID> res;
 
 		for (auto& p : tracks)
 		{
@@ -118,7 +123,7 @@ public:
 		return res;
 	}
 
-	void save_detected(std::vector<uint32_t> ids)
+	void save_detected(std::vector<TrackID> ids)
 	{
 		PPF();
 
@@ -144,6 +149,25 @@ public:
 		}
 
 		return res;
+	}
+
+	cv::Point2f getTrackPos(TrackID id) const
+	{
+		if (detected.find(id) == detected.end())
+			throw std::invalid_argument("track id is not in detected");
+
+		auto tit = tracks.find(id);
+		if (tit != tracks.end())
+		{
+			auto bit = blobs.find(tit->second->label);
+			if (bit != blobs.end())
+			{
+				auto b = bit->second;
+				return cv::Point2f(b->centroid.x, b->centroid.y);
+			}
+		}
+
+		throw std::runtime_error("track id in detected, but blob is not found");
 	}
 
 
@@ -185,7 +209,20 @@ std::vector<DtBlob> Tracker::get_all_detected() const { return impl->get_all_det
 void Tracker::draw_detected(cv::Mat & frame) const { return impl->draw_detected(frame); }
 void Tracker::draw_tracks(cv::Mat & frame) const { return impl->draw_tracks(frame); }
 
-void Tracker::forget_detected() { impl->detected.clear(); }
+void Tracker::forget_detected()
+{
+	if (auto cons = det_cons.lock())
+	{
+		for (auto& did : impl->detected)
+		{
+			cons->trackLost(did);
+		}
+	}
+
+	impl->detected.clear();
+}
+
+cv::Point2f Tracker::getTrackPos(TrackID id) const { return impl->getTrackPos(id); }
 
 Tracker::Tracker() :
 	impl(make_shared<Tracker_impl>(*this))

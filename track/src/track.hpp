@@ -6,22 +6,28 @@
 #include <memory>
 #include <vector>
 
+#include "IDetection.hpp"
+
 struct DtBlob
 {
-	uint32_t id;
+	TrackID id;
 	cv::Point2f centroid;
 };
 
 
-class Tracker
+class Tracker : public IDetector
 {
+public:
+
+	virtual cv::Point2f getTrackPos(TrackID id) const;
+
 public:
 
 	void update_tracks(cv::Mat const& frame);
 
-	std::vector<uint32_t> detect(int const inactive_time_min, int const inactive_time_max) const;
+	std::vector<TrackID> detect(int const inactive_time_min, int const inactive_time_max) const;
 
-	void save_detected(std::vector<uint32_t> ids);
+	void save_detected(std::vector<TrackID> ids);
 
 	std::vector<DtBlob> get_all_detected() const;
 
@@ -32,11 +38,15 @@ public:
 
 	Tracker();
 
+	void setDetectionConsumer(std::weak_ptr<IDetectionConsumer> dc) { det_cons = dc; }
+
 protected:
 
 	class Tracker_impl;
 	friend class Tracker_impl;
 	std::shared_ptr<Tracker_impl> impl;
+
+	std::weak_ptr<IDetectionConsumer> det_cons;
 };
 
 

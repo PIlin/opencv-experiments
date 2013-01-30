@@ -235,7 +235,7 @@ struct CTC : public CameraTrackerControl
 	}
 
 
-	CTC (std::unique_ptr<Camera> cam, std::unique_ptr<Tracker> tracker) :
+	CTC (std::unique_ptr<Camera> cam, std::shared_ptr<Tracker> tracker) :
 		camera(std::move(cam)),
 		tracker(std::move(tracker)),
 		lastFrame(Mat::zeros(Size(1,1), CV_8UC3))
@@ -243,7 +243,7 @@ struct CTC : public CameraTrackerControl
 	}
 
 	std::unique_ptr<Camera> camera;
-	std::unique_ptr<Tracker> tracker;
+	std::shared_ptr<Tracker> tracker;
 	Mat lastFrame;
 	Mat prevFrame;
 	Mat lastFiltered;
@@ -264,14 +264,17 @@ public:
 
 int main ( int argc, char **argv )  try
 {
-	CTC ctc(make_unique<WebCamera>(), make_unique<Tracker>());
+	CTC ctc(make_unique<WebCamera>(), std::make_shared<Tracker>());
 	// CTC ctc(make_unique<KinectCamera>());
 
-	LightController lc;
+	auto lc = std::make_shared<LightController>();
+
+	ctc.tracker->setDetectionConsumer(lc);
+	lc->setDetector(ctc.tracker);
 
 	CDO cdo;
 
-	StateController sc(lc, ctc, cdo);
+	StateController sc(*lc, ctc, cdo);
 
 	for (auto& w : wins)
 	{
@@ -301,16 +304,27 @@ int main ( int argc, char **argv )  try
 
 	bool manual = false;
 	bool need_step = true;
+	bool allow_autocalibrate = true;
 
 	while (true)
 	{
-		lc.poll();
+		lc->poll();
 
 		if (!manual || need_step)
 		{
 			sc.step();
 
 			need_step = !manual;
+		}
+
+		if (allow_autocalibrate)
+		{
+			if (lc->have_undetected())
+			{
+				auto lid = lc->get_undetected();
+
+				sc.begin_calibration(make_shared<LightID>(lid));
+			}
 		}
 
 		char kp = cv::waitKey(20);
@@ -325,6 +339,12 @@ int main ( int argc, char **argv )  try
 		case 'M':
 			{
 				manual = !manual;
+				break;
+			}
+		case 'a':
+			{
+				allow_autocalibrate = !allow_autocalibrate;
+				PPFX("allow_autocalibrate = " << allow_autocalibrate);
 				break;
 			}
 		case 'c':

@@ -2,7 +2,7 @@
 #define StateController_HPP__
 
 #include "track.hpp"
-
+#include "IDetection.hpp"
 
 void fsm_test();
 
@@ -17,7 +17,7 @@ public:
 	virtual bool IsEnabled(LightID const& id) = 0;
 	virtual bool IsDisabled(LightID const& id) = 0;
 
-	virtual void SetDetectedID(LightID const& id, uint32_t track_id) = 0;
+	virtual void SetDetectedID(LightID const& id, TrackID track_id) = 0;
 	virtual void DetectionFailed(LightID const& id) = 0;
 
 protected:
@@ -80,7 +80,7 @@ public:
 	bool allow_calibration;
 	std::shared_ptr<LightID> light_id_calibration;
 
-	std::vector<uint32_t> found_ids;
+	std::vector<TrackID> found_ids;
 };
 
 
