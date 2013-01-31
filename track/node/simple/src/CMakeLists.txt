@@ -14,4 +14,22 @@ project( ${TARGET_NAME}_proj )
 file(GLOB_RECURSE ${TARGET_NAME}_SRCS *.cpp)
 file(GLOB_RECURSE ${TARGET_NAME}_HDRS *.hpp)
 
-generate_arduino_firmware(${TARGET_NAME} BOARD ${TARGET_BOARD})
+
+
+set(NANOPB_SRC_ROOT_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}/../../nanopb")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${NANOPB_SRC_ROOT_FOLDER}/cmake)
+find_package( Nanopb REQUIRED )
+
+NANOPB_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/../../../proto/simple_command.proto)
+
+include_directories(${NANOPB_INCLUDE_DIRS})
+
+
+
+
+set( ${TARGET_NAME}_SRCS  ${${TARGET_NAME}_SRCS} ${PROTO_SRCS})
+set( ${TARGET_NAME}_HDRS  ${${TARGET_NAME}_HDRS} ${PROTO_HDRS})
+
+
+
+generate_arduino_firmware(${TARGET_NAME} BOARD ${TARGET_BOARD} NO_AUTOLIBS)

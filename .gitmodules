@@ -3,4 +3,4 @@
 	url = git@github.com:PIlin/nanopb.git
 [submodule "track/node/arduino-cmake"]
 	path = track/node/arduino-cmake
-	url = git://github.com/queezythegreat/arduino-cmake.git
+	url = git@github.com:PIlin/arduino-cmake.git
