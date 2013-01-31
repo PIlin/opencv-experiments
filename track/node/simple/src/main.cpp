@@ -1,8 +1,84 @@
 
 #include "Arduino.h"
 
+
+#include "simple_command.pb.h"
+#include <pb_decode.h>
+
 const int ledPin = 13; // the pin that the LED is attached to
 int incomingByte;      // a variable to read incoming serial data into
+
+
+static simple_command command;
+
+static bool read_callback(pb_istream_t* stream, uint8_t* buf, size_t count)
+{
+  if (buf)
+  {
+    if (Serial.readBytes((char*)buf, count) < count)
+    {
+      return false;
+    }
+  }
+  else
+  {
+    char c;
+    while (count--)
+      if (Serial.readBytes(&c, 1) < 1)
+        return false;
+  }
+
+  return true;
+}
+
+pb_istream_t istream = {&read_callback, NULL, 65535};
+
+
+void process_command()
+{
+  switch(command.command)
+  {
+    case ECommand_LIGHT_ON:
+    {
+      digitalWrite(ledPin, HIGH);
+      break;
+    }
+    case ECommand_LIGHT_OFF:
+    {
+      digitalWrite(ledPin, LOW);
+      break;
+    }
+  }
+}
+
+
+void read_package()
+{
+  static uint8_t size = 0;
+  static bool in_package = false;
+
+  while (Serial.available() > 0)
+  {
+    if (in_package)
+    {
+      istream.bytes_left = size;
+
+      pb_decode(&istream, simple_command_fields, &command);
+
+      process_command();
+
+      in_package = false;
+    }
+    else
+    {
+      if (Serial.available() > 0)
+        if (Serial.readBytes((char*)&size, 1) == 1)
+          in_package = true;
+    }
+  }
+
+}
+
 
 void setup() {
   // initialize serial communication:
@@ -27,5 +103,8 @@ void loop() {
 
     delay(30);
     Serial.write(incomingByte);
+
+
+
   }
 }

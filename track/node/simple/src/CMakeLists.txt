@@ -23,7 +23,7 @@ find_package( Nanopb REQUIRED )
 NANOPB_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/../../../proto/simple_command.proto)
 
 include_directories(${NANOPB_INCLUDE_DIRS})
-
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 
 
