@@ -18,14 +18,14 @@
 			// "-Wno-attributes",
 			// "-Wno-builtin-requires-header",
 			// "-Wno-unused-command-line-argument"
-		],
+		]
 
-		"sublimeclang_additional_language_options":
-		{
-			"c++" :["-std=c++11",
-					"-stdlib=libc++",
-					"-I/usr/lib/c++/v1"
-					]
- 		}
+		// "sublimeclang_additional_language_options":
+		// {
+		// 	"c++" :[//"-std=c++11",
+		// 			//"-stdlib=libc++",
+		// 			//"-I/usr/lib/c++/v1"
+		// 			]
+ 		// 	}
  	}
 }

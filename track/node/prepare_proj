@@ -1,0 +1,22 @@
+#!/bin/bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+usage() {
+  cat <<EOF
+$0 CONFIGURATION
+EOF
+  exit 0
+}
+#[ "$#" -lt 1 ] && usage
+
+
+TARGET=${1:-Release}
+
+#echo 'executing:'
+set -x verbose
+
+cmake -DCMAKE_TOOLCHAIN_FILE="$DIR/arduino-cmake/cmake/ArduinoToolchain.cmake" \
+  -DCMAKE_BUILD_TYPE=$TARGET \
+  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+  ../src
