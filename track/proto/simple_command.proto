@@ -1,0 +1,4 @@
+message simple_command {
+	required uint32 node_id = 1;
+	required string command = 2;
+}
