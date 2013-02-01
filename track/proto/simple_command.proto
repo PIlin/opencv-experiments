@@ -6,14 +6,12 @@ enum ECommand {
 
 message simple_command {
 	required uint32 node_id = 1;
-
-
-
 	required ECommand command = 2;
 }
 
 message simple_answer {
 	required uint32 node_id = 1;
-	required string ECommand = 2;
+	required ECommand command = 2;
 	required uint32 answer = 3;
+
 }

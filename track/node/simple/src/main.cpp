@@ -4,12 +4,30 @@
 
 #include "simple_command.pb.h"
 #include <pb_decode.h>
+#include <pb_encode.h>
 
 const int ledPin = 13; // the pin that the LED is attached to
 int incomingByte;      // a variable to read incoming serial data into
 
+static void blink(uint8_t count, unsigned long t)
+{
+  while (count--)
+  {
+    digitalWrite(ledPin, HIGH);
+    delay(t);
+    digitalWrite(ledPin, LOW);
+    delay(t);
+  }
+}
+
+#define ERROR_BLINK(count) blink(count, 100)
+
+
+
+
 
 static simple_command command;
+static simple_answer answer;
 
 static bool read_callback(pb_istream_t* stream, uint8_t* buf, size_t count)
 {
@@ -17,7 +35,6 @@ static bool read_callback(pb_istream_t* stream, uint8_t* buf, size_t count)
   {
     if (Serial.readBytes((char*)buf, count) < count)
     {
-      // Serial.println("read clb errror1");
       return false;
     }
   }
@@ -28,7 +45,6 @@ static bool read_callback(pb_istream_t* stream, uint8_t* buf, size_t count)
     {
       if (Serial.readBytes(&c, 1) < 1)
       {
-        // Serial.println("read clb errror2");
         return false;
       }
     }
@@ -37,26 +53,53 @@ static bool read_callback(pb_istream_t* stream, uint8_t* buf, size_t count)
   return true;
 }
 
-pb_istream_t istream = {&read_callback, NULL, 65535};
+#define PB_WRITE_BUF_SIZE 32
+static uint8_t pb_write_buf[PB_WRITE_BUF_SIZE];
 
+
+pb_istream_t istream = {&read_callback, NULL, 65535u};
 
 void process_command()
 {
-  // Serial.println("process_command");
-  // Serial.println(command.command);
 
+  answer.command = command.command;
+  answer.node_id = command.node_id;
+  answer.answer = 0;
 
   switch(command.command)
   {
     case ECommand_LIGHT_ON:
     {
       digitalWrite(ledPin, HIGH);
+
+      answer.answer = 1;
+
       break;
     }
     case ECommand_LIGHT_OFF:
     {
       digitalWrite(ledPin, LOW);
+
+      answer.answer = 1;
+
       break;
+    }
+  }
+
+  pb_ostream_t ostream = pb_ostream_from_buffer(pb_write_buf, PB_WRITE_BUF_SIZE);
+  for (int i = 0; i < 1; i++)
+  {
+    if (!pb_encode(&ostream, simple_answer_fields, &answer))
+    {
+      ERROR_BLINK(3);
+    }
+    else
+    {
+      if (Serial.write((uint8_t)ostream.bytes_written) != 1 ||
+        Serial.write(pb_write_buf, ostream.bytes_written) != ostream.bytes_written)
+      {
+        ERROR_BLINK(6);
+      }
     }
   }
 }
@@ -79,8 +122,7 @@ void read_package()
         process_command();
       else
       {
-        // Serial.print("pb_decode error: ");
-        // Serial.println(PB_GET_ERROR(&istream));
+        ERROR_BLINK(9);
       }
 
       in_package = false;
@@ -91,8 +133,6 @@ void read_package()
       {
         if (Serial.readBytes((char*)&size, 1) == 1)
         {
-          // Serial.print("read size ");
-          // Serial.println(size);
           in_package = true;
         }
       }
@@ -103,32 +143,11 @@ void read_package()
 
 
 void setup() {
-  // initialize serial communication:
   Serial.begin(9600);
-  // initialize the LED pin as an output:
   pinMode(ledPin, OUTPUT);
 }
 
 void loop() {
-  // // see if there's incoming serial data:
-  // if (Serial.available() > 0) {
-  //   // read the oldest byte in the serial buffer:
-  //   incomingByte = Serial.read();
-  //   // if it's a capital H (ASCII 72), turn on the LED:
-  //   if (incomingByte == 'H') {
-  //     digitalWrite(ledPin, HIGH);
-  //   }
-  //   // if it's an L (ASCII 76) turn off the LED:
-  //   if (incomingByte == 'L') {
-  //     digitalWrite(ledPin, LOW);
-  //   }
-
-  //   delay(30);
-  //   Serial.write(incomingByte);
-
-
-
-  // }
-
   read_package();
 }
+

@@ -120,14 +120,50 @@ private:
 
 void on_serial_data_receive(std::vector<uint8_t>& data)
 {
-	PPF();
-	for (auto c : data)
-	{
-		putchar(c);
-	}
-	putchar('\n');
+	PPFX( "size = " << data.size() );
 
-	data.clear();
+	assert(!data.empty());
+
+
+	uint8_t const* new_b = &*data.begin();
+	uint8_t const* e = new_b + data.size();
+
+	{
+		uint8_t const* b = new_b;
+
+		while (e - b)
+		{
+			uint8_t size = b[0];
+			PPFX("message size have to be " << (int)size);
+			++b;
+
+			if (e - b < size)
+				break;
+
+
+			simple_answer answer;
+			if (answer.ParseFromArray(b, size))
+			{
+				b += size;
+				new_b = b;
+
+				cout << answer.DebugString() << endl;
+			}
+
+		}
+
+	}
+
+	if (e - new_b)
+	{
+		std::copy(new_b, e, data.begin());
+		data.resize(e - new_b);
+	}
+	else
+	{
+		data.clear();
+	}
+	PPFX( "new size = " << data.size() );
 }
 
 
