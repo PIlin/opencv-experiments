@@ -4,14 +4,32 @@ enum ECommand {
 }
 
 
-message simple_command {
+message SimpleCommand {
 	required uint32 node_id = 1;
 	required ECommand command = 2;
 }
 
-message simple_answer {
+message SimpleAnswer {
 	required uint32 node_id = 1;
 	required ECommand command = 2;
 	required uint32 answer = 3;
+}
 
+message DebugPrint {
+	required string what = 1;
+}
+
+message MessagePackage
+{
+/*	enum Type {
+		SIMPLE_COMMAND_TYPE = 1;
+		SIMPLE_ANSWER_TYPE = 2;
+		DEBUG_PRINT = 3;
+	}
+
+	required Type type = 1;
+*/
+	optional SimpleCommand simple_command = 2;
+	optional SimpleAnswer simple_answer = 3;
+	optional DebugPrint debug_print = 4;
 }

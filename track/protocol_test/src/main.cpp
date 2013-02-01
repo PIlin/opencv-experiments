@@ -141,13 +141,13 @@ void on_serial_data_receive(std::vector<uint8_t>& data)
 				break;
 
 
-			simple_answer answer;
-			if (answer.ParseFromArray(b, size))
+			MessagePackage package;
+			if (package.ParseFromArray(b, size))
 			{
 				b += size;
 				new_b = b;
 
-				cout << answer.DebugString() << endl;
+				cout << package.DebugString() << endl;
 			}
 
 		}
@@ -164,11 +164,19 @@ void on_serial_data_receive(std::vector<uint8_t>& data)
 		data.clear();
 	}
 	PPFX( "new size = " << data.size() );
+
+/*
+	for (auto c : data)
+		printf("0x%02x ", c);
+	cout << endl;
+
+	data.clear();
+*/
 }
 
 
 
-boost::posix_time::seconds period(1);
+boost::posix_time::seconds period(5);
 
 void on_timer(SerialPort& port)
 {
@@ -177,24 +185,35 @@ void on_timer(SerialPort& port)
 
 	static bool on = true;
 
-	simple_command com;
+	MessagePackage package;
+	SimpleCommand* pcom = package.mutable_simple_command();
+	SimpleCommand& com = *pcom;
+
+	// SimpleCommand com;
 	com.set_node_id(123);
 	com.set_command(on ? LIGHT_ON : LIGHT_OFF);
 	on = !on;
 
 	array<uint8_t, 256> a;
-	auto succ = com.SerializeToArray(a.data(), a.size());
+	auto succ = package.SerializeToArray(a.data(), a.size());
 	assert(succ);
 
-	auto s = com.ByteSize();
+	auto s = package.ByteSize();
 
-
+	cout << "package size = " << s << endl;
 	cout << com.DebugString() << endl;
 
-	port.writebyte(static_cast<uint8_t>(s));
+	for (size_t i = 0; i<s; ++i)
+	{
+		printf("0x%02x ", a[i]);
+	}
+	cout << endl;
 
+
+	port.writebyte(static_cast<uint8_t>(s));
 	port.write(a.data(), s);
 
+	// exit(0);
 }
 
 
@@ -203,7 +222,7 @@ int main()
 	SerialPort port("/dev/tty.usbmodemfd141", 9600, iosrv,
 			[](std::vector<uint8_t>& data) { on_serial_data_receive(data); });
 
-	ba::deadline_timer timer(iosrv, period);
+	ba::deadline_timer timer(iosrv, boost::posix_time::seconds(1));
 
 	std::function<void(boost::system::error_code const&)> on_timeout;
 	auto relauch_timer = [&]() { timer.async_wait(on_timeout); };
