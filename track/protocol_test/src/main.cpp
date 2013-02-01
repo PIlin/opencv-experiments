@@ -6,6 +6,8 @@
 
 #include <simple_command.pb.h>
 
+#include "utils.hpp"
+
 using namespace std;
 
 namespace ba = boost::asio;
@@ -31,21 +33,32 @@ public:
 
 	void write(std::string s)
 	{
+		PPF();
 		ba::write(port, ba::buffer(s.c_str(), s.size()));
+	}
+
+	template <typename T>
+	void write(T const& t)
+	{
+		PPF();
+		ba::write(port, ba::buffer(t.data(), t.size()));
+	}
+
+	void write(void* c, size_t size)
+	{
+		PPF();
+		ba::write(port, ba::buffer(c, size));
 	}
 
 	void writebyte(char c)
 	{
+		PPF();
 		ba::write(port, ba::buffer(&c, 1));
-	}
-
-	void writebytes(void* c, size_t size)
-	{
-		ba::write(port, ba::buffer(c, size));
 	}
 
 	char readbyte()
 	{
+		PPF();
 		char c;
 		ba::read(port, ba::buffer(&c, 1));
 		return c;
@@ -107,6 +120,7 @@ private:
 
 void on_serial_data_receive(std::vector<uint8_t>& data)
 {
+	PPF();
 	for (auto c : data)
 	{
 		putchar(c);
@@ -122,6 +136,9 @@ boost::posix_time::seconds period(1);
 
 void on_timer(SerialPort& port)
 {
+	PPF();
+
+
 	static bool on = true;
 
 	simple_command com;
@@ -129,12 +146,19 @@ void on_timer(SerialPort& port)
 	com.set_command(on ? LIGHT_ON : LIGHT_OFF);
 	on = !on;
 
-	std::vector<uint8_t> data(com.ByteSize(), 0);
+	array<uint8_t, 256> a;
+	auto succ = com.SerializeToArray(a.data(), a.size());
+	assert(succ);
 
-	assert(com.SerializeToArray(data.data(), data.size()));
+	auto s = com.ByteSize();
 
 
-	port.writebytes(data.data(), data.size());
+	cout << com.DebugString() << endl;
+
+	port.writebyte(static_cast<uint8_t>(s));
+
+	port.write(a.data(), s);
+
 }
 
 
