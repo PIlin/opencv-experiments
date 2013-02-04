@@ -124,6 +124,14 @@ void on_serial_data_receive(std::vector<uint8_t>& data)
 
 	assert(!data.empty());
 
+	for (auto c : data)
+		printf("0x%02x ", c);
+	cout << endl;
+	for (auto c : data)
+		putchar(c);
+	cout << endl;
+
+
 
 	uint8_t const* new_b = &*data.begin();
 	uint8_t const* e = new_b + data.size();
@@ -190,7 +198,7 @@ void on_timer(SerialPort& port)
 	SimpleCommand& com = *pcom;
 
 	// SimpleCommand com;
-	com.set_node_id(123);
+	com.set_node_id(3646696768);
 	com.set_command(on ? LIGHT_ON : LIGHT_OFF);
 	on = !on;
 
@@ -219,7 +227,10 @@ void on_timer(SerialPort& port)
 
 int main()
 {
-	SerialPort port("/dev/tty.usbmodemfd141", 9600, iosrv,
+	SerialPort port(
+		// "/dev/tty.usbmodemfd141",
+		"/dev/tty.usbmodemfa141",
+		9600, iosrv,
 			[](std::vector<uint8_t>& data) { on_serial_data_receive(data); });
 
 	ba::deadline_timer timer(iosrv, boost::posix_time::seconds(1));

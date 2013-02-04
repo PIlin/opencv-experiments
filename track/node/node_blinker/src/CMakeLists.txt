@@ -5,15 +5,17 @@ cmake_minimum_required(VERSION 2.8)
 #print_board_list()
 #print_programmer_list()
 
-set(TARGET_NAME node_simple)
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../arduino_libs/XBee)
+
+set(TARGET_NAME node_blinker)
 set(TARGET_BOARD leonardo)
-set(${TARGET_NAME}_PORT /dev/tty.usbmodemfd141)
-set(${TARGET_NAME}_PORT /dev/tty.usbmodemfa141)
+set(${TARGET_NAME}_PORT /dev/tty.usbmodemfd131)
+#set(${TARGET_NAME}_PORT /dev/tty.usbmodemfa141)
 
 project( ${TARGET_NAME}_proj )
 
-file(GLOB_RECURSE ${TARGET_NAME}_SRCS *.cpp)
-file(GLOB_RECURSE ${TARGET_NAME}_HDRS *.hpp)
+file(GLOB_RECURSE ${TARGET_NAME}_SRCS *.cpp *.c)
+file(GLOB_RECURSE ${TARGET_NAME}_HDRS *.hpp *.h)
 
 
 
