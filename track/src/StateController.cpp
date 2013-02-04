@@ -5,7 +5,7 @@
 #include <functional>
 
 // we need more than the default 10 states
-#define FUSION_MAX_VECTOR_SIZE 15
+#define FUSION_MAX_VECTOR_SIZE 20
 
 #include <boost/msm/back/state_machine.hpp>
 #include <boost/msm/back/queue_container_circular.hpp>
@@ -51,6 +51,7 @@ namespace {
 	BOOST_MSM_EUML_EVENT(calibrate_event)
 	BOOST_MSM_EUML_EVENT(light_on_event)
 	BOOST_MSM_EUML_EVENT(light_off_event)
+	BOOST_MSM_EUML_EVENT(light_timeout_event)
 	BOOST_MSM_EUML_EVENT(wait_done)
 	BOOST_MSM_EUML_EVENT(found_event)
 	BOOST_MSM_EUML_EVENT(search_again_event)
@@ -81,7 +82,12 @@ namespace {
 	{
 		PA();
 
-		fsm.calib.lc.Disable(*fsm.calib.light_id_calibration);
+		fsm.calib.lc.Disable(*fsm.calib.light_id_calibration,
+			[&fsm]()
+			{
+				PPF();
+				fsm.enqueue_event(light_timeout_event);
+			});
 	}};
 
 	STATE_ACTION(IsLightOff_Entry)
@@ -142,17 +148,9 @@ namespace {
 			{
 				++c.searches_skip_frame_counter;
 			}
-			else if (c.searches_counter >= c.cdo.search_attempts())
-			{
-				fsm.enqueue_event(search_timeout_event);
-				// enqueue_event(check_timeout);
-			}
 			else
 			{
 				fsm.enqueue_event(search_again_event);
-				// enqueue_event(check_again);
-
-				++c.searches_counter;
 			}
 		}
 	}};
@@ -163,6 +161,24 @@ namespace {
 
 		StateController& c = fsm.calib;
 		c.light_found();
+	}};
+
+	STATE_ACTION(Retry_Entry)
+	{
+		PA();
+
+		StateController& c = fsm.calib;
+
+		++c.searches_counter;
+
+		if (c.searches_counter >= c.cdo.search_attempts())
+		{
+			fsm.enqueue_event(search_timeout_event);
+		}
+		else
+		{
+			fsm.enqueue_event(search_again_event);
+		}
 	}};
 
 	STATE_ACTION(Error_Entry)
@@ -177,7 +193,12 @@ namespace {
 	{
 		// cout << "LightOn_action" << endl;
 		PA();
-		fsm.calib.lc.Enable(*fsm.calib.light_id_calibration);
+		fsm.calib.lc.Enable(*fsm.calib.light_id_calibration,
+			[&fsm]()
+			{
+				PPF();
+				fsm.enqueue_event(light_timeout_event);
+			});
 	}};
 
 	ACTION(UDC_action)
@@ -185,6 +206,11 @@ namespace {
 		//cout << "LightOn_action" << endl;
 		// PA();
 		fsm.calib.ctc.UDC();
+	}};
+
+	ACTION(DisallowCalibration_action)
+	{
+		fsm.calib.allow_calibration = false;
 	}};
 
 
@@ -200,6 +226,7 @@ namespace {
 	BOOST_MSM_EUML_STATE((CheckIsLightOn_Entry),CheckIsLightOn)
 	BOOST_MSM_EUML_STATE((Check_Entry),Check)
 	BOOST_MSM_EUML_STATE((Found_Entry),Found)
+	BOOST_MSM_EUML_STATE((Retry_Entry),Retry)
 	BOOST_MSM_EUML_STATE((Error_Entry),Error)
 
 
@@ -209,23 +236,35 @@ namespace {
 
 		BOOST_MSM_EUML_DECLARE_TRANSITION_TABLE((
 			Idle + step_event / UDC_action == Idle,
-			Idle + calibrate_event / LightOn_action == InitLightOn,
+			Idle + calibrate_event / DisallowCalibration_action, LightOn_action == InitLightOn,
+
 			InitLightOn + step_event == InitIsLightOn,
 			InitIsLightOn + step_event == InitIsLightOn,
 			InitIsLightOn + light_on_event / UDC_action == LightOff,
+			// InitIsLightOn + light_timeout_event = Retry,
+
 			LightOff + step_event == IsLightOff,
 			IsLightOff + step_event == IsLightOff,
 			IsLightOff + light_off_event / UDC_action == Wait,
+			// IsLightOff + light_timeout_event = Retry,
+
 			Wait + step_event / UDC_action == Wait,
 			Wait + wait_done / LightOn_action == CheckLightOn,
+
 			CheckLightOn + step_event == CheckIsLightOn,
 			CheckIsLightOn + step_event == CheckIsLightOn,
 			CheckIsLightOn + light_on_event / UDC_action == Check,
+			// CheckIsLightOn + light_timeout_event = Retry,
+
 			Check + found_event == Found,
-			Check + search_again_event == LightOff,
-			Check + search_timeout_event == Error,
+			Check + search_again_event == Retry,
 			Check + step_event / UDC_action == Check,
+
 			Found + step_event == Idle,
+
+			Retry + search_again_event / LightOn_action == InitLightOn,
+			Retry + search_timeout_event == Error,
+
 			Error + step_event == Idle
 			), transition_table)
 
@@ -335,13 +374,13 @@ bool StateController::begin_calibration(std::shared_ptr<LightID> id)
 
 	light_id_calibration = id;
 
-
+	PPFX("fsm()().enqueue_event(calibrate_event); this = " << (void*)this);
 	fsm()().enqueue_event(calibrate_event);
 	wait_counter = 0;
 	searches_counter = 0;
 	searches_skip_frame_counter = 0;
 
-	allow_calibration = false;
+	//allow_calibration = false;
 
 	return true;
 }

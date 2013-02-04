@@ -11,8 +11,8 @@ struct LightID;
 class LightControl
 {
 public:
-	virtual void Enable(LightID const& id) = 0;
-	virtual void Disable(LightID const& id) = 0;
+	virtual void Enable(LightID const& id, std::function<void()> on_error) = 0;
+	virtual void Disable(LightID const& id, std::function<void()> on_error) = 0;
 
 	virtual bool IsEnabled(LightID const& id) = 0;
 	virtual bool IsDisabled(LightID const& id) = 0;

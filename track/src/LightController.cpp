@@ -1,5 +1,6 @@
 #include "LightController.hpp"
 #include "utils.hpp"
+#include "io_service.hpp"
 
 #include <array>
 #include <list>
@@ -12,7 +13,6 @@
 
 namespace ba = boost::asio;
 
-ba::io_service iosrv;
 
 class SerialPort : private boost::noncopyable
 {
@@ -134,6 +134,7 @@ struct Command
 	ECommand com;
 	LightID id;
 	std::function<void(Command const& com, uint32_t answer)> on_answer;
+	std::function<void(Command const& com)> on_timeout;
 };
 
 class LightController::Impl
@@ -150,8 +151,10 @@ public:
 		owner(owner),
 		port(make_unique<SerialPort>(
 			"/dev/tty.usbmodemfd141",
-			57600, iosrv,
-			[this](std::vector<uint8_t>& data) { on_serial_data_receive(data); }))
+			57600, get_io_service(),
+			[this](std::vector<uint8_t>& data) { on_serial_data_receive(data); })),
+		discovery_timer(get_io_service(), discovery_timeout),
+		is_discovery_going(false)
 	{
 
 	}
@@ -315,13 +318,17 @@ public:
 		else
 		{
 			std::cout << "Timer found for command " << it->com.com << std::endl;
+
+			if (it->com.on_timeout)
+				it->com.on_timeout(it->com);
+
 			commands.erase(it);
 		}
 	}
 
 	void enqueue_command(Command com)
 	{
-		auto timer = std::make_shared<ba::deadline_timer>(iosrv, boost::posix_time::seconds(5));
+		auto timer = std::make_shared<ba::deadline_timer>(get_io_service(), boost::posix_time::seconds(5));
 
 		timer->async_wait([this, timer](boost::system::error_code const& error) {
 			this->on_timer_timeout(timer, error);
@@ -367,17 +374,42 @@ public:
 	}
 
 
+	void do_discovery()
+	{
+		if (is_discovery_going)
+			return;
+
+		PPF();
+
+		discovery_timer.expires_from_now(discovery_timeout);
+		discovery_timer.async_wait([this](boost::system::error_code const&)
+			{
+				is_discovery_going = false;
+			});
+
+		Command c = {BEACON, 0};
+		send_command(c);
+
+		is_discovery_going = true;
+	}
+
+
 	std::list<TimeredCommand> commands;
 
 	friend class LightController;
 	LightController& owner;
 	std::unique_ptr<SerialPort> port;
+
+
+	const boost::posix_time::seconds discovery_timeout = boost::posix_time::seconds(20);
+	ba::deadline_timer discovery_timer;
+	bool is_discovery_going;
 };
 
 
 
 
-void LightController::Enable(LightID const& id)
+void LightController::Enable(LightID const& id, std::function<void()> on_error)
 {
 	PPFX(id);
 
@@ -399,11 +431,16 @@ void LightController::Enable(LightID const& id)
 				it->second->enabled = true;
 			else
 				PPFX("id is not found");
+		},
+		[on_error](Command const& com)
+		{
+			if (on_error)
+				on_error();
 		}
 	});
 }
 
-void LightController::Disable(LightID const& id)
+void LightController::Disable(LightID const& id, std::function<void()> on_error)
 {
 	PPFX(id);
 
@@ -425,6 +462,11 @@ void LightController::Disable(LightID const& id)
 				it->second->enabled = false;
 			else
 				PPFX("id is not found");
+		},
+		[on_error](Command const& com)
+		{
+			if (on_error)
+				on_error();
 		}
 	});
 }
@@ -493,25 +535,6 @@ void LightController::DetectionFailed(LightID const& id)
 }
 
 
-void LightController::poll()
-{
-	// PPF();
-
-	boost::system::error_code error;
-	iosrv.poll(error);
-	if (error)
-	{
-		std::cerr << "LightController::poll() error: " << error.message() << std::endl;
-	}
-
-
-	// static char c = 'H';
-	// c = (c == 'L' ? 'H' : 'L');
-
-	// port->writebyte(c);
-
-}
-
 bool LightController::have_undetected() const
 {
 	auto it = std::find_if(lightmap.begin(), lightmap.end(),
@@ -541,7 +564,7 @@ LightID LightController::get_undetected() const
 
 void LightController::do_discovery()
 {
-
+	impl->do_discovery();
 }
 
 

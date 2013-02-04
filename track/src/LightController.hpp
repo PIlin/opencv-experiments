@@ -1,6 +1,8 @@
 #ifndef LIGHT_CONTROLLER_HPP__
 #define LIGHT_CONTROLLER_HPP__
 
+#include <functional>
+
 #include "StateController.hpp"
 #include "IDetection.hpp"
 
@@ -28,8 +30,8 @@ class LightController : public LightControl, public IDetectionConsumer
 {
 public:
 
-	virtual void Enable(LightID const& id);
-	virtual void Disable(LightID const& id);
+	virtual void Enable(LightID const& id, std::function<void()> on_error);
+	virtual void Disable(LightID const& id, std::function<void()> on_error);
 
 	virtual bool IsEnabled(LightID const& id);
 	virtual bool IsDisabled(LightID const& id);
@@ -47,8 +49,6 @@ public:
 	virtual ~LightController();
 
 	void setDetector(std::weak_ptr<IDetector> d) { detector = d; }
-
-	void poll();
 
 	bool have_undetected() const;
 	LightID get_undetected() const;

@@ -14,6 +14,7 @@
 #include "StateController.hpp"
 #include "track.hpp"
 #include "utils.hpp"
+#include "io_service.hpp"
 
 using namespace cv;
 using namespace std;
@@ -309,7 +310,7 @@ int main ( int argc, char **argv )  try
 
 	while (true)
 	{
-		lc->poll();
+		io_service_poll();
 
 		if (!manual || need_step)
 		{
