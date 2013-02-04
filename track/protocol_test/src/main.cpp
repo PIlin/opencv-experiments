@@ -120,16 +120,16 @@ private:
 
 void on_serial_data_receive(std::vector<uint8_t>& data)
 {
-	PPFX( "size = " << data.size() );
+	// PPFX( "size = " << data.size() );
 
 	assert(!data.empty());
 
-	for (auto c : data)
-		printf("0x%02x ", c);
-	cout << endl;
-	for (auto c : data)
-		putchar(c);
-	cout << endl;
+	// for (auto c : data)
+	// 	printf("0x%02x ", c);
+	// cout << endl;
+	// for (auto c : data)
+	// 	putchar(c);
+	// cout << endl;
 
 
 
@@ -142,7 +142,7 @@ void on_serial_data_receive(std::vector<uint8_t>& data)
 		while (e - b)
 		{
 			uint8_t size = b[0];
-			PPFX("message size have to be " << (int)size);
+			// PPFX("message size have to be " << (int)size);
 			++b;
 
 			if (e - b < size)
@@ -155,7 +155,9 @@ void on_serial_data_receive(std::vector<uint8_t>& data)
 				b += size;
 				new_b = b;
 
+				cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< size = " << size << endl;
 				cout << package.DebugString() << endl;
+				cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"  << endl;
 			}
 
 		}
@@ -171,7 +173,7 @@ void on_serial_data_receive(std::vector<uint8_t>& data)
 	{
 		data.clear();
 	}
-	PPFX( "new size = " << data.size() );
+	// PPFX( "new size = " << data.size() );
 
 /*
 	for (auto c : data)
@@ -184,11 +186,11 @@ void on_serial_data_receive(std::vector<uint8_t>& data)
 
 
 
-boost::posix_time::seconds period(5);
+boost::posix_time::seconds period(2);
 
-void on_timer(SerialPort& port)
+void on_timer(SerialPort& port) try
 {
-	PPF();
+	// PPF();
 
 
 	static bool on = true;
@@ -198,7 +200,7 @@ void on_timer(SerialPort& port)
 	SimpleCommand& com = *pcom;
 
 	// SimpleCommand com;
-	com.set_node_id(3646696768);
+	com.set_node_id(3665386816);
 	com.set_command(on ? LIGHT_ON : LIGHT_OFF);
 	on = !on;
 
@@ -208,14 +210,18 @@ void on_timer(SerialPort& port)
 
 	auto s = package.ByteSize();
 
-	cout << "package size = " << s << endl;
+	cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> size = " << s << endl;
 	cout << com.DebugString() << endl;
 
-	for (size_t i = 0; i<s; ++i)
-	{
-		printf("0x%02x ", a[i]);
-	}
-	cout << endl;
+	// for (size_t i = 0; i<s; ++i)
+	// {
+	// 	printf("0x%02x ", a[i]);
+	// }
+	// cout << endl;
+
+
+	cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
+
 
 
 	port.writebyte(static_cast<uint8_t>(s));
@@ -223,14 +229,18 @@ void on_timer(SerialPort& port)
 
 	// exit(0);
 }
+catch(std::exception& ex)
+{
+	std::cerr << ex.what() << std::endl;
+}
 
 
 int main()
 {
 	SerialPort port(
-		// "/dev/tty.usbmodemfd141",
-		"/dev/tty.usbmodemfa141",
-		9600, iosrv,
+		"/dev/tty.usbmodemfd141",
+		// "/dev/tty.usbmodemfa141",
+		57600, iosrv,
 			[](std::vector<uint8_t>& data) { on_serial_data_receive(data); });
 
 	ba::deadline_timer timer(iosrv, boost::posix_time::seconds(1));

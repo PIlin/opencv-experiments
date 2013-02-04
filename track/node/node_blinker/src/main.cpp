@@ -149,7 +149,15 @@ bool packet_xb_writer(uint8_t* data, uint8_t size)
 ////////////////////////
 
 
+void send_beacon()
+{
+  DEBUG_PRINT("send_beacon");
+  answer.node_id = sl;
+  answer.command = ECommand_BEACON;
+  answer.answer = 0;
 
+  send_package(SimpleAnswer_fields, &answer, packet_xb_writer);
+}
 
 //
 
@@ -166,6 +174,7 @@ void process_command()
     {
       case ECommand_LIGHT_ON:
       {
+        DEBUG_PRINT("ECommand_LIGHT_ON");
         digitalWrite(ledPin, HIGH);
 
         answer.answer = 1;
@@ -174,10 +183,17 @@ void process_command()
       }
       case ECommand_LIGHT_OFF:
       {
+        DEBUG_PRINT("ECommand_LIGHT_OFF");
         digitalWrite(ledPin, LOW);
 
         answer.answer = 2;
 
+        break;
+      }
+      case ECommand_BEACON:
+      {
+        DEBUG_PRINT("ECommand_BEACON");
+        send_beacon();
         break;
       }
     }
@@ -342,7 +358,7 @@ void setup()
 
   get_our_sl();
 
-  DBGP("Greetings!");
+  // DBGP("Greetings!");
 }
 
 void loop()
@@ -359,6 +375,15 @@ void loop()
   //process_serial_package();
 
   //perform_blink();
+
+  static unsigned long last_beacon = 0;
+  unsigned long now = millis();
+  if (now - last_beacon >= 30000)
+  {
+    last_beacon = now;
+    send_beacon();
+  }
+
 
   process_xbee_packets();
 }

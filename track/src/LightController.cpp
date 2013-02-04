@@ -8,6 +8,8 @@
 
 #include <opencv2/opencv.hpp>
 
+#include <simple_command.pb.h>
+
 namespace ba = boost::asio;
 
 ba::io_service iosrv;
@@ -34,10 +36,26 @@ public:
 		ba::write(port, ba::buffer(s.c_str(), s.size()));
 	}
 
+	template <typename T>
+	void write(T const& t)
+	{
+		PPF();
+		ba::write(port, ba::buffer(t.data(), t.size()));
+	}
+
+
+	void write(void* c, size_t size)
+	{
+		PPF();
+		ba::write(port, ba::buffer(c, size));
+	}
+
 	void writebyte(char c)
 	{
+		PPF();
 		ba::write(port, ba::buffer(&c, 1));
 	}
+
 
 	char readbyte()
 	{
@@ -113,9 +131,9 @@ public:
 
 struct Command
 {
-	uint8_t com;
+	ECommand com;
 	LightID id;
-	std::function<void(LightID)> on_answer;
+	std::function<void(Command const& com, uint32_t answer)> on_answer;
 };
 
 class LightController::Impl
@@ -130,7 +148,9 @@ public:
 
 	Impl(LightController& owner) try:
 		owner(owner),
-		port(make_unique<SerialPort>("/dev/tty.usbmodemfd141", 9600, iosrv,
+		port(make_unique<SerialPort>(
+			"/dev/tty.usbmodemfd141",
+			57600, iosrv,
 			[this](std::vector<uint8_t>& data) { on_serial_data_receive(data); }))
 	{
 
@@ -150,37 +170,130 @@ public:
 	{
 		PPFX(data.size());
 
-		for (auto c : data)
+		assert(!data.empty());
+
+		uint8_t const* new_b = &*data.begin();
+		uint8_t const* e = new_b + data.size();
+
+		{
+			uint8_t const* b = new_b;
+
+			while (e - b)
+			{
+				uint8_t size = b[0];
+				// PPFX("message size have to be " << (int)size);
+				++b;
+
+				if (e - b < size)
+					break;
+
+
+				MessagePackage package;
+				if (package.ParseFromArray(b, size))
+				{
+					b += size;
+					new_b = b;
+
+					std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< size = " << size << std::endl;
+					std::cout << package.DebugString() << std::endl;
+					std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"  << std::endl;
+
+					process_incoming_message_package(package);
+				}
+
+			}
+
+		}
+
+		if (e - new_b)
+		{
+			std::copy(new_b, e, data.begin());
+			data.resize(e - new_b);
+		}
+		else
+		{
+			data.clear();
+		}
+
+
+		data.clear();
+	}
+
+	void process_incoming_message_package(MessagePackage const& mp)
+	{
+		if (mp.has_simple_command())
+			process_incoming_simple_command(mp.simple_command());
+
+		if (mp.has_simple_answer())
+			process_incoming_simple_answer(mp.simple_answer());
+
+		if (mp.has_debug_print())
+			process_incoming_debug_print(mp.debug_print());
+	}
+
+	void process_incoming_simple_command(SimpleCommand const& sc)
+	{
+
+	}
+
+	void process_incoming_simple_answer(SimpleAnswer const& sa)
+	{
+		if (BEACON == sa.command())
+		{
+			process_incoming_beacon(sa);
+		}
+		else
 		{
 			auto it = std::find_if(commands.begin(), commands.end(), [&](TimeredCommand& com){
-				return com.com.com == c;
+				return sa.command() == com.com.com
+					&& sa.node_id() == com.com.id.id;
 			});
 
 			if (it != commands.end())
 			{
-				PPFX("lightmap size " << owner.lightmap.size() );
-
+				PPFX("found command " << sa.command() << " for " << sa.node_id());
 				Command & com = it->com;
+
 				auto lit = owner.lightmap.find(com.id);
 				if (lit != owner.lightmap.end())
 				{
-					std::cout << "Found command answer";
+					PPFX("found command answer");
 
 					if (com.on_answer)
-						com.on_answer(com.id);
+						com.on_answer(com, sa.answer());
 
 					it->timer->cancel();
 					commands.erase(it);
 				}
-				else
-				{
-					std::cout << "No command for answer " << c << std::endl;
-				}
+			}
+			else
+			{
+				PPFX("no command " << sa.command() << " for " << sa.node_id());
 			}
 		}
-
-		data.clear();
 	}
+
+	void process_incoming_debug_print(DebugPrint const& dp)
+	{
+
+	}
+
+	void process_incoming_beacon(SimpleAnswer const& be)
+	{
+		auto& lm = owner.lightmap;
+		auto it = lm.find(be.node_id());
+		if (it == lm.end())
+		{
+			PPFX("beacon from new node " << be.node_id());
+
+			lm.insert(std::make_pair(LightID{be.node_id()}, make_unique<Light>(Light{false, false})));
+		}
+		else
+		{
+			PPFX("beacon from existing node " << be.node_id());
+		}
+	}
+
 
 	void on_timer_timeout(std::shared_ptr<ba::deadline_timer> timer, boost::system::error_code const& error)
 	{
@@ -216,7 +329,41 @@ public:
 
 		commands.push_back({com, timer});
 
-		port->writebyte(com.com);
+		send_command(com);
+	}
+
+	void send_command(Command const& com) try
+	{
+		MessagePackage package;
+		{
+			SimpleCommand* pcom = package.mutable_simple_command();
+			SimpleCommand& c = *pcom;
+
+			c.set_node_id(com.id.id);
+			c.set_command(com.com);
+		}
+
+		std::array<uint8_t, 256> a;
+		auto succ = package.SerializeToArray(a.data(), a.size());
+		if (!succ)
+			throw std::runtime_error("cannot serialize command to array");
+
+		auto s = package.ByteSize();
+
+		{
+			std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> size = " << s << std::endl;
+			std::cout << package.DebugString() << std::endl;
+			std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> size = " << std::endl;
+		}
+
+		port->writebyte(static_cast<uint8_t>(s));
+		port->write(a.data(), s);
+	}
+	catch(std::exception& ex)
+	{
+		std::cerr << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+		std::cerr << ex.what() << std::endl;
+		std::cerr << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
 	}
 
 
@@ -238,10 +385,16 @@ void LightController::Enable(LightID const& id)
 	if (it == lightmap.end())
 		throw std::invalid_argument("id is not found");
 
-	impl->enqueue_command(Command{'H', id,
-		[this](LightID id)
+	impl->enqueue_command(Command{LIGHT_ON, id,
+		[this](Command const& com, uint32_t answer)
 		{
-			auto it = lightmap.find(id);
+			if (answer == 0)
+			{
+				PPFX("some error in the node");
+				return;
+			}
+
+			auto it = lightmap.find(com.id);
 			if (it != lightmap.end())
 				it->second->enabled = true;
 			else
@@ -258,10 +411,16 @@ void LightController::Disable(LightID const& id)
 	if (it == lightmap.end())
 		throw std::invalid_argument("id is not found");
 
-	impl->enqueue_command(Command{'L', id,
-		[this](LightID id)
+	impl->enqueue_command(Command{LIGHT_OFF, id,
+		[this](Command const& com, uint32_t answer)
 		{
-			auto it = lightmap.find(id);
+			if (answer == 0)
+			{
+				PPFX("some error in the node");
+				return;
+			}
+
+			auto it = lightmap.find(com.id);
 			if (it != lightmap.end())
 				it->second->enabled = false;
 			else
@@ -380,10 +539,16 @@ LightID LightController::get_undetected() const
 	throw std::logic_error("there is no undetected lights");
 }
 
+void LightController::do_discovery()
+{
+
+}
+
+
 LightController::LightController() :
 	impl(make_unique<Impl>(std::ref(*this)))
 {
-	lightmap.insert(std::make_pair(LightID{0}, make_unique<Light>(Light{false, false})));
+	//lightmap.insert(std::make_pair(LightID{0}, make_unique<Light>(Light{false, false})));
 }
 
 LightController::~LightController()

@@ -12,7 +12,7 @@ struct LightID
 
 	bool operator<(LightID const& o) const { return id < o.id; }
 	bool operator==(LightID const& o) const { return id == o.id; }
-
+	bool operator!=(LightID const& o) const { return !(*this == o); }
 
 	template <typename ostream_T>
 	friend ostream_T& operator<<(ostream_T& os, LightID const& lid)
@@ -52,6 +52,8 @@ public:
 
 	bool have_undetected() const;
 	LightID get_undetected() const;
+
+	void do_discovery();
 
 private:
 

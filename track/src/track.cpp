@@ -53,6 +53,8 @@ public:
 
 		cvb::cvUpdateTracks(blobs, tracks, 40., 10);
 
+
+		if (false)
 		{
 			cout << "+++++++++++++++++" << endl;
 			for (auto const& it : old_tracks)

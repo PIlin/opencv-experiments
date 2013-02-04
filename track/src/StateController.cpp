@@ -61,7 +61,7 @@ namespace {
 
 	STATE_ACTION(Idle_Entry)
 	{
-		PA();
+		// PA();
 
 		fsm.calib.allow_calibration = true;
 	}};
@@ -183,7 +183,7 @@ namespace {
 	ACTION(UDC_action)
 	{
 		//cout << "LightOn_action" << endl;
-		PA();
+		// PA();
 		fsm.calib.ctc.UDC();
 	}};
 
@@ -365,7 +365,7 @@ bool StateController::step()
 	}
 	else
 	{
-		PPFX(" step event");
+		// PPFX(" step event");
 
 		fsm()().process_event(step_event);
 	}

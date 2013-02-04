@@ -305,7 +305,7 @@ uint8_t process_xbee_packets(int timeout = 0)
       }
     default:
       {
-        DBGP("xbee got unknown packet");
+        // DBGP("xbee got unknown packet");
         // DEBUG_PRINTLN2("Got packet with apiId", xbee.getResponse().getApiId());
         break;
       }
@@ -356,7 +356,7 @@ void process_serial_package()
       {
         if (Serial.readBytes((char*)&size, 1) == 1)
         {
-          DBGP("in package");
+          // DBGP("in package");
 
           in_package = true;
         }
@@ -372,7 +372,7 @@ void setup()
 {
   pinMode(ledPin, OUTPUT);
 
-  Serial.begin(9600);
+  Serial.begin(57600);
 
   XBEE_SERIAL.begin(9600);
   xbee.begin(XBEE_SERIAL);

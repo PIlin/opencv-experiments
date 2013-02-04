@@ -305,6 +305,7 @@ int main ( int argc, char **argv )  try
 	bool manual = false;
 	bool need_step = true;
 	bool allow_autocalibrate = true;
+	bool allow_beacon_request = true;
 
 	while (true)
 	{
@@ -325,6 +326,11 @@ int main ( int argc, char **argv )  try
 
 				sc.begin_calibration(make_shared<LightID>(lid));
 			}
+		}
+
+		if (allow_beacon_request)
+		{
+			lc->do_discovery();
 		}
 
 		char kp = cv::waitKey(20);
