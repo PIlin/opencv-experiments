@@ -6,6 +6,7 @@
 # define DEBUG_PRINT(x)   do { Serial.print(x);   } while (0)
 # define DEBUG_PRINTLN(x) do { Serial.println(x); } while (0)
 # define DEBUG_PRINTLN2(x,y) do { DEBUG_PRINT(x); DEBUG_PRINTLN(y); } while (0)
+# define DEBUG_PRINTLN2H(x,y) do { DEBUG_PRINT(x); Serial.println(y, HEX); } while (0)
 #else
 # define DEBUG_PRINT(x)
 # define DEBUG_PRINTLN(x)

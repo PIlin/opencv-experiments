@@ -356,7 +356,7 @@ int main ( int argc, char **argv )  try
 			}
 		case 'c':
 			{
-				sc.begin_calibration(make_shared<LightID>(0));
+				// sc.begin_calibration(make_shared<LightID>(0));
 				break;
 			}
 		case 'f':

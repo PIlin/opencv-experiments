@@ -186,7 +186,8 @@ public:
 				{
 					auto const& b = bit->second;
 					cvb::cvRenderBlob(labelImg, b, &iframe, &iframe
-						,CV_BLOB_RENDER_COLOR|CV_BLOB_RENDER_CENTROID|CV_BLOB_RENDER_BOUNDING_BOX|CV_BLOB_RENDER_ANGLE | CV_BLOB_RENDER_TO_STD
+						,CV_BLOB_RENDER_COLOR|CV_BLOB_RENDER_CENTROID|CV_BLOB_RENDER_BOUNDING_BOX|CV_BLOB_RENDER_ANGLE
+						// | CV_BLOB_RENDER_TO_STD
 						);
 				}
 			}

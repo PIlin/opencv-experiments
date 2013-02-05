@@ -21,6 +21,34 @@ SoftwareSerial soft_serial(10, 11);
 # define XBEE_SERIAL soft_serial
 #endif
 
+////////////
+
+
+size_t BufferPrint::write(uint8_t c)
+{
+  if (s > 1)
+  {
+    buf[written] = c;
+    ++written;
+    buf[written] = 0;
+    --s;
+    return 1;
+  }
+  return 0;
+}
+
+
+#define DEBUG_PRINT_BUF_SIZE 64
+uint8_t debug_print_buf[DEBUG_PRINT_BUF_SIZE];
+BufferPrint bufferPrint;
+void reset_buffer_print(void)
+{
+  debug_print_buf[0] = 0;
+  bufferPrint = BufferPrint(debug_print_buf, DEBUG_PRINT_BUF_SIZE);
+}
+
+
+
 
 
 //////////
@@ -60,34 +88,34 @@ static ModemStatusResponse msr = ModemStatusResponse();
 
 ///
 
-struct point_t
-{
-  uint8_t x;
-  uint8_t y;
-};
+// struct point_t
+// {
+//   uint8_t x;
+//   uint8_t y;
+// };
 
-static const uint8_t children_count = 4;
-struct child
-{
-  uint32_t addr;
-  uint8_t p;
-};
-static child children[children_count] =
-{
-  {0xE9795D40, 0},
-  {0xDC5C2D40, 1},
-  {0xD95C2D40, 2},
-  {0xDA795D40, 3}
-};
+// static const uint8_t children_count = 4;
+// struct child
+// {
+//   uint32_t addr;
+//   uint8_t p;
+// };
+// static child children[children_count] =
+// {
+//   {0xE9795D40, 0},
+//   {0xDC5C2D40, 1},
+//   {0xD95C2D40, 2},
+//   {0xDA795D40, 3}
+// };
 
-static uint32_t addr = 0xE9795D40;
-static const uint8_t positions_count = 4;
-static point_t positions[positions_count] = {
-  {10, 10},
-  {15, 169},
-  {200, 215},
-  {140, 25}
-};
+// static uint32_t addr = 0xE9795D40;
+// static const uint8_t positions_count = 4;
+// static point_t positions[positions_count] = {
+//   {10, 10},
+//   {15, 169},
+//   {200, 215},
+//   {140, 25}
+// };
 
 ////////////////////////
 
@@ -133,10 +161,37 @@ bool packet_stream_writer(uint8_t* data, uint8_t size)
 }
 
 
+void DBGP(char const* x)
+{
+  debug_print(x, packet_stream_writer);
+}
+
 bool packet_xb_writer(uint8_t* data, uint8_t size)
 {
+/*
+  reset_buffer_print();
+  bufferPrint.print("packet_xb_writer size "); bufferPrint.print(size);
+  DBGP((char const*)bufferPrint.buf);
+
+  reset_buffer_print();
+  for (int i = 0; i < size; ++i)
+  {
+    bufferPrint.print(data[i], HEX); bufferPrint.print(" ");
+  }
+  DBGP((char const*)bufferPrint.buf);
+*/
+/*
+  Serial.print("packet_xb_writer size "); Serial.println(size);
+  Serial.print("packet_xb_writer data "); Serial.println((size_t)data, HEX);
+  for (int i = 0; i < size; ++i)
+  {
+    Serial.print(data[i], HEX); Serial.print(" ");
+  }
+  Serial.println(' ');
+*/
   zbTx.setPayload(data);
   zbTx.setPayloadLength(size);
+  zbTx.setAddress16(0xFFFE);
 
   xbee.send(zbTx);
 
@@ -145,69 +200,96 @@ bool packet_xb_writer(uint8_t* data, uint8_t size)
 /////////
 
 
-#define DBGP(x) debug_print(x, packet_stream_writer)
+
 
 
 ////////////////////////
 
 
-void change_pattern()
-{
-  // static uint8_t cur = 4;
+// void change_pattern()
+// {
+//   // static uint8_t cur = 4;
 
-  // ++cur;
-  // cur = cur % positions_count;
+//   // ++cur;
+//   // cur = cur % positions_count;
 
-  // DEBUG_PRINTLN2("next positions = ", cur);
+//   // DEBUG_PRINTLN2("next positions = ", cur);
 
-  struct packet {
-    uint8_t magic;
-    uint8_t updates;
-    struct info_t{
-      uint32_t addr;
-      point_t pos;
-    } info[];
-  };
-
-
-  uint8_t buf[2 + sizeof(packet::info_t) * children_count];
-  packet& p = *(packet*)buf;
-
-  p.magic = 0x42;
-  p.updates = children_count;
-
-  for (int i = 0; i < children_count; ++i)
-  {
-    packet::info_t& info = p.info[i];
-
-    info.addr = children[i].addr;
-
-    children[i].p++;
-    children[i].p %= positions_count;
-
-    info.pos = positions[children[i].p];
-  }
+//   struct packet {
+//     uint8_t magic;
+//     uint8_t updates;
+//     struct info_t{
+//       uint32_t addr;
+//       point_t pos;
+//     } info[];
+//   };
 
 
-  zbTx.setPayload(buf);
-  zbTx.setPayloadLength(sizeof(buf));
+//   uint8_t buf[2 + sizeof(packet::info_t) * children_count];
+//   packet& p = *(packet*)buf;
+
+//   p.magic = 0x42;
+//   p.updates = children_count;
+
+//   for (int i = 0; i < children_count; ++i)
+//   {
+//     packet::info_t& info = p.info[i];
+
+//     info.addr = children[i].addr;
+
+//     children[i].p++;
+//     children[i].p %= positions_count;
+
+//     info.pos = positions[children[i].p];
+//   }
 
 
-  // DEBUG_PRINTLN("payload");
-  // for (int i = 0; i < zbTx.getPayloadLength(); ++i)
-  // {
-  //   Serial.print(zbTx.getPayload()[i], HEX);
-  // }
-  // DEBUG_PRINTLN();
+//   zbTx.setPayload(buf);
+//   zbTx.setPayloadLength(sizeof(buf));
 
-  xbee.send(zbTx);
 
-  // DEBUG_PRINTLN("send done");
-}
+//   // DEBUG_PRINTLN("payload");
+//   // for (int i = 0; i < zbTx.getPayloadLength(); ++i)
+//   // {
+//   //   Serial.print(zbTx.getPayload()[i], HEX);
+//   // }
+//   // DEBUG_PRINTLN();
+
+//   xbee.send(zbTx);
+
+//   // DEBUG_PRINTLN("send done");
+// }
 
 void process_command()
 {
+  // ERROR_BLINK(3);
+
+  if (command.command == ECommand_BEACON)
+  {
+    addr64.setMsb(0);
+    addr64.setLsb(0xFFFF);
+  }
+  else
+  {
+
+    addr64.setLsb(command.node_id.lsb);
+    addr64.setMsb(command.node_id.msb);
+  }
+
+  zbTx.setAddress64(addr64);
+
+/*
+  reset_buffer_print();
+  bufferPrint.print("PC: ");
+  bufferPrint.print("C "); bufferPrint.print(command.command);
+  bufferPrint.print(", N "); bufferPrint.print(command.number);
+  bufferPrint.print(", lsb "); bufferPrint.print(command.node_id.lsb);
+  bufferPrint.print(", msb "); bufferPrint.print(command.node_id.msb);
+  DBGP((char const*)bufferPrint.buf);
+*/
+
   send_package(SimpleCommand_fields, &command, packet_xb_writer);
+  // send_package(SimpleCommand_fields, &command, packet_stream_writer);
 }
 
 void process_answer()
@@ -247,7 +329,14 @@ bool process_incoming_packet(pb_istream_t* isrt)
   else
   {
     // Serial.println("Unknown package");
-    // ERROR_BLINK(9);
+    //ERROR_BLINK(9);
+  }
+
+  if (!status)
+  {
+    reset_buffer_print();
+    bufferPrint.print("proc_inc_pkg err "); bufferPrint.println(PB_GET_ERROR(isrt));
+    DBGP((char const*)bufferPrint.buf);
   }
 
   return status;
@@ -267,6 +356,20 @@ void process_ZB_RX_RESPONSE(ZBRxResponse& rx)
 
 
   process_incoming_packet(&istream);
+}
+
+void process_ZB_TX_STATUS_RESPONSE()
+{
+  ZBTxStatusResponse txsr;
+  xbee.getResponse().getZBTxStatusResponse(txsr);
+
+  reset_buffer_print();
+  bufferPrint.print("ra "); bufferPrint.println(txsr.getRemoteAddress(), HEX);
+  bufferPrint.print("ds "); bufferPrint.println(txsr.getDeliveryStatus(), HEX);
+  bufferPrint.print("di "); bufferPrint.println(txsr.getDiscoveryStatus(), HEX);
+  bufferPrint.print("rc "); bufferPrint.println(txsr.getTxRetryCount(), HEX);
+
+  DBGP((char const*)bufferPrint.buf);
 }
 
 uint8_t process_xbee_packets(int timeout = 0)
@@ -303,6 +406,12 @@ uint8_t process_xbee_packets(int timeout = 0)
         process_ZB_RX_RESPONSE(rx);
         break;
       }
+    case ZB_TX_STATUS_RESPONSE:
+      {
+        //DEBUG_PRINTLN("ZB_TX_STATUS_RESPONSE");
+        process_ZB_TX_STATUS_RESPONSE();
+        break;
+      }
     default:
       {
         // DBGP("xbee got unknown packet");
@@ -314,7 +423,10 @@ uint8_t process_xbee_packets(int timeout = 0)
   else if (xbee.getResponse().isError())
   {
     // DEBUG_PRINTLN2("Error reading packet.  Error code: ", xbee.getResponse().getErrorCode());
-    DBGP("error reading packet");
+    //DBGP("error reading packet");
+    reset_buffer_print();
+    bufferPrint.print("error reading packet "); bufferPrint.print(xbee.getResponse().getErrorCode(), HEX);
+    DBGP((char* const)bufferPrint.buf);
   }
 
   return api_id;
@@ -366,6 +478,34 @@ void process_serial_package()
 }
 
 
+void at_command(char const * c, uint8_t const* val = NULL, int size = 0, int timeout = 5000)
+{
+  uint8_t* p = (uint8_t*)c;
+
+  static AtCommandRequest r;
+  r.setCommand(p);
+  if (val)
+  {
+    r.setCommandValue((uint8_t*)val);
+    r.setCommandValueLength(size);
+  }
+  else
+  {
+    r.clearCommandValue();
+  }
+
+  xbee.send(r);
+  process_xbee_packets(timeout);
+}
+
+void initial_xb_setup()
+{
+  {
+    uint8_t p[] = {0x28, 0x42};
+    at_command("ID", p, sizeof(p));
+  }
+}
+
 ///
 
 void setup()
@@ -383,6 +523,8 @@ void setup()
   // ERROR_BLINK(5);
 
   DBGP("Greetings!");
+
+  initial_xb_setup();
 }
 
 void loop()

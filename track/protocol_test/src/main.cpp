@@ -124,13 +124,20 @@ void on_serial_data_receive(std::vector<uint8_t>& data)
 
 	assert(!data.empty());
 
-	// for (auto c : data)
-	// 	printf("0x%02x ", c);
-	// cout << endl;
-	// for (auto c : data)
-	// 	putchar(c);
-	// cout << endl;
+/*
+cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< size = " << data.size() << endl;
 
+	for (auto c : data)
+		printf("0x%02x ", c);
+	cout << endl;
+	for (auto c : data)
+		putchar(c);
+	cout << endl;
+
+cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"  << endl;
+
+	data.clear();
+*/
 
 
 	uint8_t const* new_b = &*data.begin();
@@ -155,7 +162,7 @@ void on_serial_data_receive(std::vector<uint8_t>& data)
 				b += size;
 				new_b = b;
 
-				cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< size = " << size << endl;
+				cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< size = " << (int)size << endl;
 				cout << package.DebugString() << endl;
 				cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"  << endl;
 			}
@@ -175,6 +182,8 @@ void on_serial_data_receive(std::vector<uint8_t>& data)
 	}
 	// PPFX( "new size = " << data.size() );
 
+
+
 /*
 	for (auto c : data)
 		printf("0x%02x ", c);
@@ -186,7 +195,7 @@ void on_serial_data_receive(std::vector<uint8_t>& data)
 
 
 
-boost::posix_time::seconds period(2);
+boost::posix_time::seconds period(1);
 
 void on_timer(SerialPort& port) try
 {
@@ -196,13 +205,22 @@ void on_timer(SerialPort& port) try
 	static bool on = true;
 
 	MessagePackage package;
-	SimpleCommand* pcom = package.mutable_simple_command();
-	SimpleCommand& com = *pcom;
+	{
+		SimpleCommand* pcom = package.mutable_simple_command();
+		SimpleCommand& com = *pcom;
 
-	// SimpleCommand com;
-	com.set_node_id(3665386816);
-	com.set_command(on ? LIGHT_ON : LIGHT_OFF);
-	on = !on;
+		com.mutable_node_id()->set_msb(0x0013a200);
+		com.mutable_node_id()->set_lsb(0x40608a5b);
+		com.set_command(on ? LIGHT_ON : LIGHT_OFF);
+		com.set_number(42);
+
+		// com.mutable_node_id()->set_msb(0);
+		// com.mutable_node_id()->set_lsb(0);
+		// com.set_command(BEACON);
+		// com.set_number(0);
+
+		on = !on;
+	}
 
 	array<uint8_t, 256> a;
 	auto succ = package.SerializeToArray(a.data(), a.size());
@@ -211,13 +229,14 @@ void on_timer(SerialPort& port) try
 	auto s = package.ByteSize();
 
 	cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> size = " << s << endl;
-	cout << com.DebugString() << endl;
+	cout << package.DebugString() << endl;
 
-	// for (size_t i = 0; i<s; ++i)
-	// {
-	// 	printf("0x%02x ", a[i]);
-	// }
-	// cout << endl;
+	printf("0x%02x ", s);
+	for (size_t i = 0; i<s; ++i)
+	{
+		printf("0x%02x ", a[i]);
+	}
+	cout << endl;
 
 
 	cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;

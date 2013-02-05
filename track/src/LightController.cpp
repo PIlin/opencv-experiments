@@ -135,6 +135,7 @@ struct Command
 	LightID id;
 	std::function<void(Command const& com, uint32_t answer)> on_answer;
 	std::function<void(Command const& com)> on_timeout;
+	uint32_t number;
 };
 
 class LightController::Impl
@@ -247,15 +248,19 @@ public:
 		}
 		else
 		{
+			LightID lid = LightID(sa.node_id().msb(), sa.node_id().lsb());
+
 			auto it = std::find_if(commands.begin(), commands.end(), [&](TimeredCommand& com){
 				return sa.command() == com.com.com
-					&& sa.node_id() == com.com.id.id;
+					&& lid == com.com.id
+					&& sa.number() == com.com.number;
 			});
 
 			if (it != commands.end())
 			{
-				PPFX("found command " << sa.command() << " for " << sa.node_id());
 				Command & com = it->com;
+				PPFX("found command " << com.com << "num " << sa.number() << " for " << com.id);
+
 
 				auto lit = owner.lightmap.find(com.id);
 				if (lit != owner.lightmap.end())
@@ -271,7 +276,7 @@ public:
 			}
 			else
 			{
-				PPFX("no command " << sa.command() << " for " << sa.node_id());
+				PPFX("no command " << sa.command() << "num " << sa.number() << " for " << lid);
 			}
 		}
 	}
@@ -284,16 +289,17 @@ public:
 	void process_incoming_beacon(SimpleAnswer const& be)
 	{
 		auto& lm = owner.lightmap;
-		auto it = lm.find(be.node_id());
+		LightID lid = LightID(be.node_id().msb(), be.node_id().lsb());
+		auto it = lm.find(lid);
 		if (it == lm.end())
 		{
-			PPFX("beacon from new node " << be.node_id());
+			PPFX("beacon from new node " << lid);
 
-			lm.insert(std::make_pair(LightID{be.node_id()}, make_unique<Light>(Light{false, false})));
+			lm.insert(std::make_pair(lid, make_unique<Light>(Light{false, false})));
 		}
 		else
 		{
-			PPFX("beacon from existing node " << be.node_id());
+			PPFX("beacon from existing node " << lid);
 		}
 	}
 
@@ -328,7 +334,11 @@ public:
 
 	void enqueue_command(Command com)
 	{
-		auto timer = std::make_shared<ba::deadline_timer>(get_io_service(), boost::posix_time::seconds(5));
+		static uint32_t command_counter = 0;
+
+		com.number = command_counter++;
+
+		auto timer = std::make_shared<ba::deadline_timer>(get_io_service(), command_timeout);
 
 		timer->async_wait([this, timer](boost::system::error_code const& error) {
 			this->on_timer_timeout(timer, error);
@@ -346,9 +356,16 @@ public:
 			SimpleCommand* pcom = package.mutable_simple_command();
 			SimpleCommand& c = *pcom;
 
-			c.set_node_id(com.id.id);
+			c.mutable_node_id()->set_lsb(com.id.lsb);
+			c.mutable_node_id()->set_msb(com.id.msb);
 			c.set_command(com.com);
+			c.set_number(com.number);
+
+
 		}
+
+		if (!package.IsInitialized())
+			throw std::runtime_error("not initialized");
 
 		std::array<uint8_t, 256> a;
 		auto succ = package.SerializeToArray(a.data(), a.size());
@@ -358,7 +375,7 @@ public:
 		auto s = package.ByteSize();
 
 		{
-			std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> size = " << s << std::endl;
+			std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> size = " << (int)s << std::endl;
 			std::cout << package.DebugString() << std::endl;
 			std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> size = " << std::endl;
 		}
@@ -387,7 +404,7 @@ public:
 				is_discovery_going = false;
 			});
 
-		Command c = {BEACON, 0};
+		Command c = {BEACON, LightID(0,0)};
 		send_command(c);
 
 		is_discovery_going = true;
@@ -402,6 +419,7 @@ public:
 
 
 	const boost::posix_time::seconds discovery_timeout = boost::posix_time::seconds(20);
+	const boost::posix_time::seconds command_timeout = boost::posix_time::seconds(5);
 	ba::deadline_timer discovery_timer;
 	bool is_discovery_going;
 };
@@ -473,7 +491,7 @@ void LightController::Disable(LightID const& id, std::function<void()> on_error)
 
 bool LightController::IsEnabled(LightID const& id)
 {
-	PPFX(id);
+	// PPFX(id);
 
 	auto it = lightmap.find(id);
 	if (it == lightmap.end())
@@ -484,7 +502,7 @@ bool LightController::IsEnabled(LightID const& id)
 
 bool LightController::IsDisabled(LightID const& id)
 {
-	PPFX(id);
+	// PPFX(id);
 
 	return !IsEnabled(id);
 }
@@ -505,6 +523,13 @@ void LightController::SetDetectedID(LightID const& id, uint32_t track_id)
 	}
 }
 
+void LightController::resetLightInfo(Light & l)
+{
+	l.detected = false;
+	l.trid = 0;
+	l.enabled = false;
+}
+
 void LightController::trackLost(TrackID id)
 {
 	auto it = std::find_if(lightmap.begin(), lightmap.end(),
@@ -519,9 +544,7 @@ void LightController::trackLost(TrackID id)
 		PPFX("light found id" << it->first);
 
 		Light& l = *it->second;
-
-		l.detected = false;
-		l.trid = 0;
+		resetLightInfo(l);
 	}
 	else
 	{
@@ -532,6 +555,19 @@ void LightController::trackLost(TrackID id)
 void LightController::DetectionFailed(LightID const& id)
 {
 	PPFX(id);
+
+	auto it = lightmap.find(id);
+	if (it != lightmap.end())
+	{
+		PPFX("light found id" << it->first);
+
+		Light& l = *it->second;
+		resetLightInfo(l);
+	}
+	else
+	{
+		PPFX("ligth is not found");
+	}
 }
 
 

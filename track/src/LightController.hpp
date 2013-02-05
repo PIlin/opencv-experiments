@@ -8,18 +8,19 @@
 
 struct LightID
 {
-	uint32_t id;
+	uint32_t msb;
+	uint32_t lsb;
 
-	LightID(uint32_t id) : id(id) {}
+	LightID(uint32_t msb, uint32_t lsb) : msb(msb), lsb(lsb) {}
 
-	bool operator<(LightID const& o) const { return id < o.id; }
-	bool operator==(LightID const& o) const { return id == o.id; }
+	bool operator<(LightID const& o) const { return std::make_pair(msb, lsb) < std::make_pair(o.msb, o.lsb); }
+	bool operator==(LightID const& o) const { return std::make_pair(msb, lsb) == std::make_pair(o.msb, o.lsb); }
 	bool operator!=(LightID const& o) const { return !(*this == o); }
 
 	template <typename ostream_T>
 	friend ostream_T& operator<<(ostream_T& os, LightID const& lid)
 	{
-		os << lid.id;
+		os << std::hex << lid.msb << " " << lid.lsb << std::dec;
 		return os;
 	}
 };
@@ -64,6 +65,8 @@ private:
 	std::unique_ptr<Impl> impl;
 
 	std::weak_ptr<IDetector> detector;
+
+	void resetLightInfo(Light & l);
 
 };
 

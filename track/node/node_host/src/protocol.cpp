@@ -10,6 +10,8 @@
 #include <pb_decode.h>
 #include <pb_encode.h>
 
+#include "debug.h"
+
 
 extern int ledPin;
 extern void blink(uint8_t count, unsigned long t);
@@ -132,7 +134,14 @@ bool send_package(const pb_field_t messagetype[], const void *message, writer_fu
 
   if (!encode_unionmessage(&ostream, MessagePackage_fields, messagetype, message))
   {
-    // ERROR_BLINK(3);
+    if (messagetype != DebugPrint_fields)
+    {
+      reset_buffer_print();
+      bufferPrint.print("send_package err encode_unionmessage");
+      DBGP((char const*)bufferPrint.buf);
+    }
+    else
+      ERROR_BLINK(10);
     return false;
   }
   else
