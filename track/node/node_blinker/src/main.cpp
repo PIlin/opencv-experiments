@@ -67,6 +67,9 @@ struct NodeID
 static NodeID  this_node;
 
 
+static XBeeAddress64 remote_addr64;
+static uint16_t remote_addr16;
+
 ///
 
 // struct point_t
@@ -148,9 +151,17 @@ bool packet_xb_writer(uint8_t* data, uint8_t size)
   zbTx.setPayloadLength(size);
   zbTx.setAddress16(0xFFFE);
 
-  addr64.setMsb(0x0013a200);
-  addr64.setLsb(0x402d5cd9);
-  zbTx.setAddress64(addr64);
+  // xbee pro router
+  // addr64.setMsb(0x0013a200);
+  // addr64.setLsb(0x402d5cd9);
+
+  // xbee controller
+  // addr64.setMsb(0x0013a200);
+  // addr64.setLsb(0x405d79e9);
+  // zbTx.setAddress64(addr64);
+
+  zbTx.setAddress64(remote_addr64);
+  zbTx.setAddress16(remote_addr16);
 
   xbee.send(zbTx);
 
@@ -174,6 +185,7 @@ void send_beacon()
   answer.node_id.msb = this_node.msb;
   answer.command = ECommand_BEACON;
   answer.answer = 0;
+  answer.number = command.number;
 
 
 
@@ -206,7 +218,8 @@ void process_command()
       case ECommand_LIGHT_ON:
       {
         DEBUG_PRINTLN("ECommand_LIGHT_ON");
-        digitalWrite(ledPin, HIGH);
+        //digitalWrite(ledPin, HIGH);
+        digitalWrite(ledPin, LOW);
 
         answer.answer = 1;
 
@@ -215,7 +228,9 @@ void process_command()
       case ECommand_LIGHT_OFF:
       {
         DEBUG_PRINTLN("ECommand_LIGHT_OFF");
-        digitalWrite(ledPin, LOW);
+        // digitalWrite(ledPin, LOW);
+        digitalWrite(ledPin, HIGH);
+
 
         answer.answer = 2;
 
@@ -294,6 +309,9 @@ void process_ZB_RX_RESPONSE(ZBRxResponse& rx)
     Serial.print(" ");
   }
   DEBUG_PRINTLN(' ');
+
+  remote_addr64 = rx.getRemoteAddress64();
+  remote_addr16 = rx.getRemoteAddress16();
 
 
   pb_istream_t istream = pb_istream_from_buffer(data, length);
@@ -461,13 +479,15 @@ void initial_xb_setup()
 void setup()
 {
   pinMode(ledPin, OUTPUT);
+  pinMode(10, OUTPUT);
+  digitalWrite(10, HIGH);
 
   Serial.begin(9600);
 
   XBEE_SERIAL.begin(9600);
   xbee.begin(XBEE_SERIAL);
 
-  while (!Serial);
+  //while (!Serial);
 
   DEBUG_PRINTLN("Greetings!");
 

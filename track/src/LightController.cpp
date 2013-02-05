@@ -151,7 +151,7 @@ public:
 	Impl(LightController& owner) try:
 		owner(owner),
 		port(make_unique<SerialPort>(
-			"/dev/tty.usbmodemfd141",
+			"/dev/tty.usbmodemfa1311",
 			57600, get_io_service(),
 			[this](std::vector<uint8_t>& data) { on_serial_data_receive(data); })),
 		discovery_timer(get_io_service(), discovery_timeout),

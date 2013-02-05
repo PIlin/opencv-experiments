@@ -4,7 +4,7 @@
 
 #include "XBee/XBee.h"
 
-#define DEBUG 1
+#define DEBUG 2
 
 #include "debug.h"
 
@@ -85,7 +85,7 @@ ZBTxStatusResponse txStatus = ZBTxStatusResponse();
 
 static ZBRxResponse rx = ZBRxResponse();
 static ModemStatusResponse msr = ModemStatusResponse();
-
+static AtCommandResponse atResponse = AtCommandResponse();
 ///
 
 // struct point_t
@@ -194,6 +194,8 @@ bool packet_xb_writer(uint8_t* data, uint8_t size)
   zbTx.setAddress16(0xFFFE);
 
   xbee.send(zbTx);
+
+  ERROR_BLINK(1);
 
   return true;
 }
@@ -393,14 +395,15 @@ uint8_t process_xbee_packets(int timeout = 0)
     api_id = xbee.getResponse().getApiId();
     switch (api_id)
     {
-    // case AT_COMMAND_RESPONSE:
-    //   {
-    //     xbee.getResponse().getAtCommandResponse(atResponse);
-    //     break;
-    //   }
+    case AT_COMMAND_RESPONSE:
+      {
+        DEBUG_PRINTLN("AT_COMMAND_RESPONSE");
+        xbee.getResponse().getAtCommandResponse(atResponse);
+        break;
+      }
     case ZB_RX_RESPONSE:
       {
-        // DEBUG_PRINTLN("ZB_RX_RESPONSE");
+        DEBUG_PRINTLN("ZB_RX_RESPONSE");
 
         xbee.getResponse().getZBRxResponse(rx);
         process_ZB_RX_RESPONSE(rx);
@@ -408,25 +411,30 @@ uint8_t process_xbee_packets(int timeout = 0)
       }
     case ZB_TX_STATUS_RESPONSE:
       {
-        //DEBUG_PRINTLN("ZB_TX_STATUS_RESPONSE");
+        DEBUG_PRINTLN("ZB_TX_STATUS_RESPONSE");
         process_ZB_TX_STATUS_RESPONSE();
+        break;
+      }
+    case MODEM_STATUS_RESPONSE:
+      {
+        DEBUG_PRINTLN("MODEM_STATUS_RESPONSE");
+        static ModemStatusResponse msr;
+        xbee.getResponse().getModemStatusResponse(msr);
+
+        DEBUG_PRINTLN2H("status ", msr.getStatus());
+
         break;
       }
     default:
       {
-        // DBGP("xbee got unknown packet");
-        // DEBUG_PRINTLN2("Got packet with apiId", xbee.getResponse().getApiId());
+        DEBUG_PRINTLN2H("Got packet with apiId ", xbee.getResponse().getApiId());
         break;
       }
     } // swtich
   }
   else if (xbee.getResponse().isError())
   {
-    // DEBUG_PRINTLN2("Error reading packet.  Error code: ", xbee.getResponse().getErrorCode());
-    //DBGP("error reading packet");
-    reset_buffer_print();
-    bufferPrint.print("error reading packet "); bufferPrint.print(xbee.getResponse().getErrorCode(), HEX);
-    DBGP((char* const)bufferPrint.buf);
+    DEBUG_PRINTLN2("Error reading packet.  Error code: ", xbee.getResponse().getErrorCode());
   }
 
   return api_id;
@@ -460,7 +468,7 @@ void process_serial_package()
       }
 
       in_package = false;
-      ERROR_BLINK(1);
+      // ERROR_BLINK(1);
     }
     else
     {
@@ -478,8 +486,11 @@ void process_serial_package()
 }
 
 
-void at_command(char const * c, uint8_t const* val = NULL, int size = 0, int timeout = 5000)
+bool at_command(char const * c,
+  uint8_t const* val = NULL, uint8_t val_size = 0,
+  int timeout = 5000)
 {
+  bool status = false;
   uint8_t* p = (uint8_t*)c;
 
   static AtCommandRequest r;
@@ -487,7 +498,7 @@ void at_command(char const * c, uint8_t const* val = NULL, int size = 0, int tim
   if (val)
   {
     r.setCommandValue((uint8_t*)val);
-    r.setCommandValueLength(size);
+    r.setCommandValueLength(val_size);
   }
   else
   {
@@ -495,8 +506,54 @@ void at_command(char const * c, uint8_t const* val = NULL, int size = 0, int tim
   }
 
   xbee.send(r);
-  process_xbee_packets(timeout);
+
+  unsigned long now = millis();
+  unsigned long last = now;
+
+  while (1)
+  {
+    if (AT_COMMAND_RESPONSE == process_xbee_packets(timeout))
+    {
+      status = (atResponse.getStatus() == 0);
+      DEBUG_PRINTLN2("got AT_COMMAND_RESPONSE status ", atResponse.getStatus());
+      break;
+    }
+    else
+    {
+      now = millis();
+      if (now - last >= timeout)
+      {
+        DEBUG_PRINTLN("AT_COMMAND_RESPONSE timeout");
+        break;
+      }
+    }
+  }
+
+  return status;
 }
+
+// void get_our_address()
+// {
+//   DEBUG_PRINTLN("get_our_address");
+
+//   while (!at_command("SL"))
+//   { }
+//   //memcpy(&this_node.lsb, atResponse.getValue(), 4);
+//   //DEBUG_PRINTLN2("value len ", atResponse.getValueLength());
+
+//   for (int i = 0; i < 4; ++i)
+//     ((uint8_t*)(&this_node.lsb))[i] = atResponse.getValue()[3 - i];
+
+//   while (!at_command("SH"))
+//   { }
+//   //memcpy(&this_node.msb, atResponse.getValue(), 4);
+//   //DEBUG_PRINTLN2("value len ", atResponse.getValueLength());
+//   for (int i = 0; i < 4; ++i)
+//     ((uint8_t*)(&this_node.msb))[i] = atResponse.getValue()[3 - i];
+
+//   DEBUG_PRINTLN2H("this_node.msb", this_node.msb);
+//   DEBUG_PRINTLN2H("this_node.lsb", this_node.lsb);
+// }
 
 void initial_xb_setup()
 {
@@ -525,6 +582,8 @@ void setup()
   DBGP("Greetings!");
 
   initial_xb_setup();
+
+  // get_our_address();
 }
 
 void loop()

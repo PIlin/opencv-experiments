@@ -354,6 +354,11 @@ int main ( int argc, char **argv )  try
 				PPFX("allow_autocalibrate = " << allow_autocalibrate);
 				break;
 			}
+		case 'b':
+			{
+				allow_beacon_request = !allow_beacon_request;
+				PPFX("allow_beacon_request = " << allow_beacon_request);
+			}
 		case 'c':
 			{
 				// sc.begin_calibration(make_shared<LightID>(0));

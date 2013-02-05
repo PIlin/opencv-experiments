@@ -209,8 +209,14 @@ void on_timer(SerialPort& port) try
 		SimpleCommand* pcom = package.mutable_simple_command();
 		SimpleCommand& com = *pcom;
 
-		com.mutable_node_id()->set_msb(0x0013a200);
-		com.mutable_node_id()->set_lsb(0x40608a5b);
+		// xbee R router
+		// com.mutable_node_id()->set_msb(0x0013a200);
+		// com.mutable_node_id()->set_lsb(0x40608a5b);
+
+		// com.mutable_node_id()->set_msb(0x0013a200);
+		// com.mutable_node_id()->set_lsb(0x405d79e9);
+
+
 		com.set_command(on ? LIGHT_ON : LIGHT_OFF);
 		com.set_number(42);
 
