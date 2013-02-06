@@ -19,6 +19,8 @@ class IDetectionConsumer
 {
 public:
 
+	virtual void trackMoved(TrackID id, double x, double y) = 0;
+
 	virtual void trackLost(TrackID id) = 0;
 
 protected:

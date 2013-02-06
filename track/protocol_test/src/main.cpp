@@ -197,37 +197,8 @@ cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"  << endl;
 
 boost::posix_time::seconds period(1);
 
-void on_timer(SerialPort& port) try
+void send_package(SerialPort& port, MessagePackage& package) try
 {
-	// PPF();
-
-
-	static bool on = true;
-
-	MessagePackage package;
-	{
-		SimpleCommand* pcom = package.mutable_simple_command();
-		SimpleCommand& com = *pcom;
-
-		// xbee R router
-		// com.mutable_node_id()->set_msb(0x0013a200);
-		// com.mutable_node_id()->set_lsb(0x40608a5b);
-
-		// com.mutable_node_id()->set_msb(0x0013a200);
-		// com.mutable_node_id()->set_lsb(0x405d79e9);
-
-
-		com.set_command(on ? LIGHT_ON : LIGHT_OFF);
-		com.set_number(42);
-
-		// com.mutable_node_id()->set_msb(0);
-		// com.mutable_node_id()->set_lsb(0);
-		// com.set_command(BEACON);
-		// com.set_number(0);
-
-		on = !on;
-	}
-
 	array<uint8_t, 256> a;
 	auto succ = package.SerializeToArray(a.data(), a.size());
 	assert(succ);
@@ -260,10 +231,71 @@ catch(std::exception& ex)
 }
 
 
+
+
+void send_command(SerialPort& port)
+{
+	static bool on = true;
+
+	MessagePackage package;
+	SimpleCommand* pcom = package.mutable_simple_command();
+	SimpleCommand& com = *pcom;
+
+	// xbee R router
+	// com.mutable_node_id()->set_msb(0x0013a200);
+	// com.mutable_node_id()->set_lsb(0x40608a5b);
+
+	// com.mutable_node_id()->set_msb(0x0013a200);
+	// com.mutable_node_id()->set_lsb(0x405d79e9);
+
+	com.mutable_node_id()->set_msb(0x0013a200);
+	com.mutable_node_id()->set_lsb(0x402D5CDC);
+
+	com.set_command(on ? LIGHT_ON : LIGHT_OFF);
+	com.set_number(42);
+
+	// com.mutable_node_id()->set_msb(0);
+	// com.mutable_node_id()->set_lsb(0);
+	// com.set_command(BEACON);
+	// com.set_number(0);
+
+	on = !on;
+
+	send_package(port, package);
+
+}
+
+void send_position(SerialPort& port)
+{
+	MessagePackage package;
+
+	PositionNotify* pn = package.mutable_position_notify();
+	PositionNotify& p = *pn;
+
+	p.mutable_node_id()->set_msb(0x0013a200);
+	p.mutable_node_id()->set_lsb(0x402D5CDC);
+
+	p.set_x(10);
+	p.set_y(200);
+	p.set_number(28);
+
+	send_package(port, package);
+}
+
+void on_timer(SerialPort& port)
+{
+	// PPF();
+
+	send_command(port);
+	send_position(port);
+
+}
+
+
 int main()
 {
 	SerialPort port(
-		"/dev/tty.usbmodemfd141",
+		"/dev/tty.usbmodemfa1311",
 		// "/dev/tty.usbmodemfa141",
 		57600, iosrv,
 			[](std::vector<uint8_t>& data) { on_serial_data_receive(data); });

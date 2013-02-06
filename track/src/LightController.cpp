@@ -138,6 +138,15 @@ struct Command
 	uint32_t number;
 };
 
+struct Notification
+{
+	LightID id;
+	uint32_t number;
+
+	uint8_t x;
+	uint8_t y;
+};
+
 class LightController::Impl
 {
 public:
@@ -349,7 +358,7 @@ public:
 		send_command(com);
 	}
 
-	void send_command(Command const& com) try
+	void send_command(Command const& com)
 	{
 		MessagePackage package;
 		{
@@ -360,10 +369,30 @@ public:
 			c.mutable_node_id()->set_msb(com.id.msb);
 			c.set_command(com.com);
 			c.set_number(com.number);
-
-
 		}
 
+		send_message_package(package);
+	}
+
+	void send_notification(Notification const& no)
+	{
+		MessagePackage package;
+		{
+			PositionNotify* ppno = package.mutable_position_notify();
+			PositionNotify& pno = *ppno;
+
+			pno.mutable_node_id()->set_lsb(no.id.lsb);
+			pno.mutable_node_id()->set_msb(no.id.msb);
+			pno.set_number(no.number);
+			pno.set_x(no.x);
+			pno.set_y(no.y);
+		}
+
+		send_message_package(package);
+	}
+
+	void send_message_package(MessagePackage& package) try
+	{
 		if (!package.IsInitialized())
 			throw std::runtime_error("not initialized");
 
@@ -419,7 +448,7 @@ public:
 
 
 	const boost::posix_time::seconds discovery_timeout = boost::posix_time::seconds(20);
-	const boost::posix_time::seconds command_timeout = boost::posix_time::seconds(5);
+	const boost::posix_time::seconds command_timeout = boost::posix_time::seconds(1);
 	ba::deadline_timer discovery_timer;
 	bool is_discovery_going;
 };
@@ -520,6 +549,12 @@ void LightController::SetDetectedID(LightID const& id, uint32_t track_id)
 		Light& l = *it->second;
 		l.detected = true;
 		l.trid = track_id;
+
+		if (auto de = detector.lock())
+		{
+			auto p = de->getTrackPos(track_id);
+			send_position_notification(id, p.x, p.y);
+		}
 	}
 }
 
@@ -528,6 +563,45 @@ void LightController::resetLightInfo(Light & l)
 	l.detected = false;
 	l.trid = 0;
 	l.enabled = false;
+}
+
+void LightController::trackMoved(TrackID id, double x, double y)
+{
+	auto it = std::find_if(lightmap.begin(), lightmap.end(),
+		[&](decltype(lightmap)::value_type const& it) -> bool
+		{
+			Light const & l = *it.second;
+			return l.detected && l.trid == id;
+		});
+
+	if (it != lightmap.end())
+	{
+		PPFX("light found id" << it->first);
+
+
+		send_position_notification(it->first, x, y);
+	}
+	else
+	{
+		PPFX("ligth is not found");
+	}
+}
+
+void LightController::send_position_notification(LightID const& id, double x, double y)
+{
+	static uint32_t number = 0;
+	number++;
+
+	static auto clamp = [](double v) -> uint8_t {
+		if (v < 0.) return 0;
+		if (v > 255.) return 255;
+		return static_cast<uint8_t>(v);
+	};
+
+	impl->send_notification(Notification{id,
+		number,
+		clamp(x * 255.), clamp(y * 255.)
+	});
 }
 
 void LightController::trackLost(TrackID id)
@@ -585,15 +659,29 @@ bool LightController::have_undetected() const
 
 LightID LightController::get_undetected() const
 {
-	auto it = std::find_if(lightmap.begin(), lightmap.end(),
-		[&](decltype(lightmap)::value_type const& it) -> bool
+	static LightID last_undetected(0,0);
+
+	auto cmp = [&](decltype(lightmap)::value_type const& it) -> bool
 		{
 			Light const & l = *it.second;
 			return !l.detected;
-		});
+		};
+
+	auto ub = lightmap.upper_bound(last_undetected);
+
+	auto it = std::find_if(ub, lightmap.end(), cmp);
+	if (it == lightmap.end())
+		it = std::find_if(lightmap.begin(), ub, cmp);
 
 	if (it != lightmap.end())
+	{
+		last_undetected = it->first;
 		return it->first;
+	}
+	else
+	{
+		last_undetected = LightID(0,0);
+	}
 
 	throw std::logic_error("there is no undetected lights");
 }

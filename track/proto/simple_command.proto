@@ -27,16 +27,17 @@ message DebugPrint {
 	//optional NodeAddress node_id = 2;
 }
 
+message PositionNotify
+{
+	required NodeAddress node_id = 1;
+	required uint32 number = 2;
+	required uint32 x = 3;
+	required uint32 y = 4;
+}
+
 message MessagePackage
 {
-/*	enum Type {
-		SIMPLE_COMMAND_TYPE = 1;
-		SIMPLE_ANSWER_TYPE = 2;
-		DEBUG_PRINT = 3;
-	}
-
-	required Type type = 1;
-*/
+	optional PositionNotify position_notify = 1;
 	optional SimpleCommand simple_command = 2;
 	optional SimpleAnswer simple_answer = 3;
 	optional DebugPrint debug_print = 4;

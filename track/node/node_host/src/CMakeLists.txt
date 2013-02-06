@@ -10,8 +10,9 @@ link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../arduino_libs/XBee)
 set(TARGET_NAME node_host)
 set(TARGET_BOARD leonardo)
 
-set(${TARGET_NAME}_PORT /dev/tty.usbmodemfd141)
+#set(${TARGET_NAME}_PORT /dev/tty.usbmodemfd141)
 #set(${TARGET_NAME}_PORT /dev/tty.usbmodemfa141)
+set(${TARGET_NAME}_PORT /dev/tty.usbmodemfa1311)
 #set(${TARGET_NAME}_PORT /dev/tty.usbmodemfa1331)
 
 project( ${TARGET_NAME}_proj )

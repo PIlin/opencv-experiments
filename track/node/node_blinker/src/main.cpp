@@ -26,20 +26,59 @@ SoftwareSerial soft_serial(10, 11);
 
 /////////
 
+struct ColorRect
+{
+  uint8_t l;
+  uint8_t r;
+  uint8_t t;
+  uint8_t b;
+  uint8_t color;
+};
 
+static ColorRect colors[] = {
+  {0, 85, 0, 127, 4},
+  {85, 170, 0, 127, 7},
+  {170, 255, 0, 127, 1},
+  {0, 85, 128, 255, 3},
+  {85, 170, 128, 255, 2},
+  {170, 255, 128, 255, 6},
+};
+
+static bool current_enabled = false;
+static uint8_t current_color = 0;
+
+#define RED_LED 9
+#define GREEN_LED 10
+#define BLUE_LED 11
+#define POWER_PIN 8
+
+static void set_led(bool on)
+{
+#define ON(color) ((current_color & color) ? LOW : HIGH)
+#define OFF(color) HIGH
+#define SWITCH(on, color) (on ? ON(color) : OFF(color))
+
+  DEBUG_PRINTLN2("set_led ", on);
+  DEBUG_PRINTLN2("color ", current_color);
+
+  current_enabled = on;
+  digitalWrite(RED_LED, SWITCH(on, 4));
+  digitalWrite(GREEN_LED, SWITCH(on, 2));
+  digitalWrite(BLUE_LED, SWITCH(on, 1));
+
+
+#undef SWITCH
+#undef OFF
+#undef ON
+}
 
 //////////
 
 static SimpleCommand command;
 static SimpleAnswer answer;
-
+static PositionNotify pos_notify;
 
 /////////
-
-int ledPin = 13;
-
-static uint8_t slCmd[] = {'S','L'};
-static uint8_t shCmd[] = {'S','H'};
 
 
 XBee xbee = XBee();
@@ -219,7 +258,9 @@ void process_command()
       {
         DEBUG_PRINTLN("ECommand_LIGHT_ON");
         //digitalWrite(ledPin, HIGH);
-        digitalWrite(ledPin, LOW);
+        // digitalWrite(ledPin, LOW);
+        current_color = 7;
+        set_led(true);
 
         answer.answer = 1;
 
@@ -229,7 +270,8 @@ void process_command()
       {
         DEBUG_PRINTLN("ECommand_LIGHT_OFF");
         // digitalWrite(ledPin, LOW);
-        digitalWrite(ledPin, HIGH);
+        // digitalWrite(ledPin, HIGH);
+        set_led(false);
 
 
         answer.answer = 2;
@@ -247,6 +289,31 @@ void process_command()
   }
 
   send_package(SimpleAnswer_fields, &answer, packet_xb_writer);
+}
+
+void process_position_notify()
+{
+  DEBUG_PRINTLN("process_position_notify");
+  DEBUG_PRINTLN2H("pos_notify.lsb ", pos_notify.node_id.lsb);
+  DEBUG_PRINTLN2H("pos_notify.msb ", pos_notify.node_id.msb);
+  DEBUG_PRINTLN2("pos_notify.x ", pos_notify.x);
+  DEBUG_PRINTLN2("pos_notify.y ", pos_notify.y);
+
+  uint8_t x = pos_notify.x;
+  uint8_t y = pos_notify.y;
+
+  for (uint8_t i = 0; i < sizeof(colors) / sizeof(colors[0]); ++i)
+  {
+    ColorRect& r = colors[i];
+    if (r.l <= x && x <= r.r &&
+        r.t <= y && y <= r.b)
+    {
+      current_color = r.color;
+      set_led(current_enabled);
+      DEBUG_PRINTLN2("set color ", current_color);
+      break;
+    }
+  }
 }
 
 void process_answer()
@@ -282,6 +349,12 @@ bool process_incoming_packet(pb_istream_t* isrt)
     status = decode_unionmessage_contents(isrt, DebugPrint_fields, &debug_print_message);
     if (status)
       process_debug_print_package();
+  }
+  else if  (PositionNotify_fields == type)
+  {
+    status = decode_unionmessage_contents(isrt, PositionNotify_fields, &pos_notify);
+    if (status)
+      process_position_notify();
   }
   else
   {
@@ -478,16 +551,23 @@ void initial_xb_setup()
 
 void setup()
 {
-  pinMode(ledPin, OUTPUT);
-  pinMode(10, OUTPUT);
-  digitalWrite(10, HIGH);
+  pinMode(RED_LED, OUTPUT);
+  pinMode(GREEN_LED, OUTPUT);
+  pinMode(BLUE_LED, OUTPUT);
+  pinMode(POWER_PIN, OUTPUT);
+
+  digitalWrite(POWER_PIN, HIGH);
+
+  current_color = 0;
+  set_led(true);
+  set_led(false);
 
   Serial.begin(9600);
 
   XBEE_SERIAL.begin(9600);
   xbee.begin(XBEE_SERIAL);
 
-  //while (!Serial);
+  // while (!Serial);
 
   DEBUG_PRINTLN("Greetings!");
 

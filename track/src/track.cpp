@@ -7,6 +7,8 @@
 #include <map>
 #include <set>
 
+#include <cmath>
+
 using namespace cv;
 using namespace std;
 
@@ -28,8 +30,13 @@ class Tracker::Tracker_impl
 {
 public:
 	Tracker & t;
+	cv::Point2f frame_size;
+
+	// std::std::map<TrackID, cv::Point2d> last_reported_position;
+
 	Tracker_impl(Tracker& t) :
-		t(t)
+		t(t),
+		frame_size(1,1)
 	{
 	}
 
@@ -44,6 +51,9 @@ public:
 	void update_tracks(cv::Mat const& frame)
 	{
 		IplImage iframe = frame;
+
+		frame_size.x = frame.size().width;
+		frame_size.y = frame.size().height;
 
 		if (labelImg) cvReleaseImage(&labelImg);
 		labelImg = cvCreateImage(cvGetSize(&iframe), IPL_DEPTH_LABEL, 1);
@@ -74,10 +84,33 @@ public:
 		std::vector<cvb::CvID> removed;
 		for (auto const& d : detected)
 		{
-			if (tracks.find(d) == tracks.end())
+			auto tit = tracks.find(d);
+			if (tit == tracks.end())
 			{
 				cout << "track lost " << d << endl;
 				removed.push_back(d);
+			}
+			else
+			{
+				auto otit = old_tracks.find(d);
+				CvPoint2D64f old_centroid = {-1000, -1000};
+				if (otit != old_tracks.end())
+				{
+					old_centroid = otit->second->centroid;
+				}
+
+				cvb::CvTrack& tr = *tit->second;
+
+				static const double centroid_move_tres = std::pow(5., 2);
+
+				if (std::pow(old_centroid.x - tr.centroid.x, 2) + std::pow(old_centroid.y - tr.centroid.y, 2) >= centroid_move_tres)
+				{
+					if (auto cons = t.det_cons.lock())
+					{
+						cons->trackMoved(d,
+							tr.centroid.x / frame_size.x, tr.centroid.y / frame_size.y);
+					}
+				}
 			}
 		}
 		for (auto const& d : removed)
@@ -145,7 +178,7 @@ public:
 				if (bit != blobs.end())
 				{
 					auto b = bit->second;
-					res.push_back( { did, cv::Point2f(b->centroid.x, b->centroid.y) } );
+					res.push_back( { did, cv::Point2f(b->centroid.x/frame_size.x, b->centroid.y/frame_size.y) } );
 				}
 			}
 		}
@@ -165,7 +198,9 @@ public:
 			if (bit != blobs.end())
 			{
 				auto b = bit->second;
-				return cv::Point2f(b->centroid.x, b->centroid.y);
+
+
+				return cv::Point2f(b->centroid.x/frame_size.x, b->centroid.y/frame_size.y);
 			}
 		}
 
@@ -189,6 +224,8 @@ public:
 						,CV_BLOB_RENDER_COLOR|CV_BLOB_RENDER_CENTROID|CV_BLOB_RENDER_BOUNDING_BOX|CV_BLOB_RENDER_ANGLE
 						// | CV_BLOB_RENDER_TO_STD
 						);
+
+
 				}
 			}
 		}

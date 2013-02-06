@@ -47,6 +47,8 @@ protected:
 	std::shared_ptr<Tracker_impl> impl;
 
 	std::weak_ptr<IDetectionConsumer> det_cons;
+
+
 };
 
 

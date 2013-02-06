@@ -55,7 +55,7 @@ void reset_buffer_print(void)
 
 static SimpleCommand command;
 static SimpleAnswer answer;
-
+static PositionNotify pos_notify;
 
 /////////
 
@@ -207,61 +207,6 @@ bool packet_xb_writer(uint8_t* data, uint8_t size)
 
 ////////////////////////
 
-
-// void change_pattern()
-// {
-//   // static uint8_t cur = 4;
-
-//   // ++cur;
-//   // cur = cur % positions_count;
-
-//   // DEBUG_PRINTLN2("next positions = ", cur);
-
-//   struct packet {
-//     uint8_t magic;
-//     uint8_t updates;
-//     struct info_t{
-//       uint32_t addr;
-//       point_t pos;
-//     } info[];
-//   };
-
-
-//   uint8_t buf[2 + sizeof(packet::info_t) * children_count];
-//   packet& p = *(packet*)buf;
-
-//   p.magic = 0x42;
-//   p.updates = children_count;
-
-//   for (int i = 0; i < children_count; ++i)
-//   {
-//     packet::info_t& info = p.info[i];
-
-//     info.addr = children[i].addr;
-
-//     children[i].p++;
-//     children[i].p %= positions_count;
-
-//     info.pos = positions[children[i].p];
-//   }
-
-
-//   zbTx.setPayload(buf);
-//   zbTx.setPayloadLength(sizeof(buf));
-
-
-//   // DEBUG_PRINTLN("payload");
-//   // for (int i = 0; i < zbTx.getPayloadLength(); ++i)
-//   // {
-//   //   Serial.print(zbTx.getPayload()[i], HEX);
-//   // }
-//   // DEBUG_PRINTLN();
-
-//   xbee.send(zbTx);
-
-//   // DEBUG_PRINTLN("send done");
-// }
-
 void process_command()
 {
   // ERROR_BLINK(3);
@@ -292,6 +237,14 @@ void process_command()
 
   send_package(SimpleCommand_fields, &command, packet_xb_writer);
   // send_package(SimpleCommand_fields, &command, packet_stream_writer);
+}
+
+void process_position_notify()
+{
+  addr64.setLsb(pos_notify.node_id.lsb);
+  addr64.setMsb(pos_notify.node_id.msb);
+  zbTx.setAddress64(addr64);
+  send_package(PositionNotify_fields, &pos_notify, packet_xb_writer);
 }
 
 void process_answer()
@@ -327,6 +280,12 @@ bool process_incoming_packet(pb_istream_t* isrt)
     status = decode_unionmessage_contents(isrt, DebugPrint_fields, &debug_print_message);
     if (status)
       process_debug_print_package();
+  }
+  else if  (PositionNotify_fields == type)
+  {
+    status = decode_unionmessage_contents(isrt, PositionNotify_fields, &pos_notify);
+    if (status)
+      process_position_notify();
   }
   else
   {

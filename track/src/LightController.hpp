@@ -42,6 +42,7 @@ public:
 
 public:
 
+	virtual void trackMoved(TrackID id, double x, double y);
 	virtual void trackLost(TrackID id);
 
 public:
@@ -57,6 +58,8 @@ public:
 	void do_discovery();
 
 private:
+
+	void send_position_notification(LightID const& id, double x, double y);
 
 	std::map<LightID, std::unique_ptr<Light>> lightmap;
 
