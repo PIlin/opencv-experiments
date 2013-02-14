@@ -21,11 +21,14 @@ using namespace std;
 
 const int scale = 1;
 
+static bool dump_images = false;
+
 const string main_win_name = "main";
-const string prev_win_name = "prev";
+// const string prev_win_name = "prev";
 const string controls_win_name = "con_win";
 const string hsv_names[] = {"hsv 0", "hsv 1", "hsv 2"};
 const string hsv_tres[] = {"hsv tres", "hsv tres dil", "hsv tres hough"};
+const string tres_no_erode = "tres no erode";
 struct win
 {
 	string name;
@@ -36,12 +39,14 @@ struct win
 
 const vector<win> wins = {
 	{main_win_name, 10, 10, WINDOW_AUTOSIZE},
-	{prev_win_name, 660, 500, WINDOW_AUTOSIZE},
-	// {hsv_names[1], 660, 10, WINDOW_AUTOSIZE},
-	// {hsv_names[2], 660, 500, WINDOW_AUTOSIZE},
+	//{prev_win_name, 660, 500, WINDOW_AUTOSIZE},
+	{hsv_names[1], 660, 10, WINDOW_AUTOSIZE},
+	{hsv_names[1], 660, 10, WINDOW_AUTOSIZE},
+	{hsv_names[2], 660, 500, WINDOW_AUTOSIZE},
 	{hsv_tres[0], 660, 10, WINDOW_AUTOSIZE},
 	{hsv_tres[1], 1300, 10, WINDOW_AUTOSIZE},
 	{hsv_tres[2], 1700, 10, WINDOW_AUTOSIZE},
+	{tres_no_erode, 700, 40, WINDOW_AUTOSIZE},
 	{controls_win_name, 10, 1000, WINDOW_NORMAL}
 };
 
@@ -203,15 +208,16 @@ struct CTC : public CameraTrackerControl
 
 	Mat filterFromHSV(Mat & frame_bgr)
 	{
-		Mat frame_hsv;
-		cvtColor(frame_bgr, frame_hsv, CV_BGR2HSV);
+		cvtColor(frame_bgr, hsvFrame, CV_BGR2HSV);
 
 		std::vector<int> low = { *trackbars["Hmin"].value, *trackbars["Smin"].value, *trackbars["Vmin"].value};
 		std::vector<int> hi = { *trackbars["Hmax"].value, *trackbars["Smax"].value, *trackbars["Vmax"].value};
 
 		Mat tres;
 		//cv::inRange(frame, low, hi, tres);
-		hsvInRange(frame_hsv, low, hi, tres);
+		hsvInRange(hsvFrame, low, hi, tres);
+
+		tresFrame = tres.clone();
 
 		applyErode(tres);
 		applyPrevAnd(tres);
@@ -219,20 +225,39 @@ struct CTC : public CameraTrackerControl
 		return tres;
 	}
 
+	void imdraw(const std::string& name, const Mat& img) const
+	{
+		imshow(name, img);
+
+		if (dump_images)
+			imwrite(name + ".png", img);
+	}
 
 	void draw() const
 	{
-		imshow(main_win_name, lastFrame);
-		imshow(prev_win_name, prevFrame);
-		imshow(hsv_tres[0], lastFiltered);
+		imdraw(main_win_name, lastFrame);
+		// imshow(prev_win_name, prevFrame);
+		imdraw(hsv_tres[0], lastFiltered);
+
+
+		std::vector<Mat> hsv_channels;
+		cv::split(hsvFrame, hsv_channels);
+		for (int i = 0; i < 3; ++i)
+		{
+			imdraw(hsv_names[i], hsv_channels[i]);
+		}
+
+		imdraw(tres_no_erode, tresFrame);
 
 		Mat m = zeroed(lastFrame);
 		tracker->draw_tracks(m);
-		imshow(hsv_tres[1], m);
+		imdraw(hsv_tres[1], m);
 
 		m = zeroed(lastFrame);
 		tracker->draw_detected(m);
-		imshow(hsv_tres[2], m);
+		imdraw(hsv_tres[2], m);
+
+		dump_images = false;
 	}
 
 
@@ -248,6 +273,8 @@ struct CTC : public CameraTrackerControl
 	Mat lastFrame;
 	Mat prevFrame;
 	Mat lastFiltered;
+	Mat hsvFrame;
+	Mat tresFrame;
 
 	int scale = 1;
 	std::list<cv::Mat> prev_and_frames;
@@ -372,6 +399,11 @@ int main ( int argc, char **argv )  try
 		case ' ':
 			{
 				need_step = true;
+				break;
+			}
+		case 'd':
+			{
+				dump_images = true;
 				break;
 			}
 		}
