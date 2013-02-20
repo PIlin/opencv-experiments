@@ -20,3 +20,6 @@ cmake -DCMAKE_TOOLCHAIN_FILE="$DIR/arduino-cmake/cmake/ArduinoToolchain.cmake" \
   -DCMAKE_BUILD_TYPE=$TARGET \
   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
   ../src
+
+
+  # -D"ARDUINO_LINKER_FLAGS=\"-Wl,-Map=mapfile.map -Wl,--gc-sections -lm\" " \
