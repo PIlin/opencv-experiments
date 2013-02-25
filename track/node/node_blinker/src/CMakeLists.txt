@@ -9,6 +9,7 @@ link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../arduino_libs/XBee)
 
 set(TARGET_NAME node_blinker)
 set(TARGET_BOARD leonardo)
+#set(ARDUINO_LINKER_FLAGS "-Wl,-Map=mapfile.map")
 
 #set(${TARGET_NAME}_PORT /dev/tty.usbmodemfd131)
 #set(${TARGET_NAME}_PORT /dev/tty.usbmodemfa141)
