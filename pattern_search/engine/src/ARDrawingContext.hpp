@@ -11,6 +11,9 @@
 
 #include <opencv2/opencv.hpp>
 
+
+#include "gl.hpp"
+
 class ARDrawingContext {
 public:
 	ARDrawingContext();
@@ -36,7 +39,7 @@ private:
     void drawAugmentedScene();
 
     void initTexture();
-    static void uploadTexture(cv::Mat const& frame);
+    static void uploadTexture(cv::Mat const& frame, GLuint texture);
     void killTexture();
 
 private:
@@ -45,7 +48,7 @@ private:
 	cv::Mat background;
 
 	bool isTextureInitialized;
-	GLint backgroundTextureId;
+	GLuint backgroundTextureId;
 };
 
 #endif /* ARDRAWINGCONTEXT_HPP_ */

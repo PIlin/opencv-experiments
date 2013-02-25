@@ -23,7 +23,7 @@ void processVideo(Camera& camera, ARPipeline& pipeline,
 
 		drawing_context.updateBackground(frame);
 
-		drawing_context.draw();
+		drawing_context.drawAll();
 
 		char kp = cv::waitKey(20);
 		if (kp == 27) {

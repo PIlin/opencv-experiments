@@ -17,7 +17,7 @@ void ARDrawingContextDrawCallback(void* param)
 }
 
 ARDrawingContext::ARDrawingContext() :
-		windowNname("main"),
+		windowName("main"),
 		isTextureInitialized(false)
 {
 	cv::namedWindow(windowName, cv::WINDOW_OPENGL);
@@ -57,20 +57,17 @@ void ARDrawingContext::draw()
 void ARDrawingContext::drawCameraFrame()
 {
 	initTexture();
+	uploadTexture(background, backgroundTextureId);
 
-	int w = m_backgroundImage.cols;
-	int h = m_backgroundImage.rows;
-
-	glPixelStorei(GL_PACK_ALIGNMENT, 1);
-	glBindTexture(GL_TEXTURE_2D, texture);
-
+	const float w = background.cols;
+	const float h = background.rows;
 
 	const GLfloat bgTextureVertices[] =
-	{ 0, 0, w, 0, 0, h, w, h };
+		{ 0, 0, w, 0, 0, h, w, h };
 	const GLfloat bgTextureCoords[] =
-	{ 1, 0, 1, 1, 0, 0, 0, 1 };
+		{ 1, 0, 1, 1, 0, 0, 0, 1 };
 	const GLfloat proj[] =
-	{ 0, -2.f / w, 0, 0, -2.f / h, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1 };
+		{ 0, -2.f / w, 0, 0, -2.f / h, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1 };
 
 	glMatrixMode (GL_PROJECTION);
 	glLoadMatrixf(proj);
@@ -78,12 +75,12 @@ void ARDrawingContext::drawCameraFrame()
 	glMatrixMode (GL_MODELVIEW);
 	glLoadIdentity();
 
-	glEnable (GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, m_backgroundTextureId);
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, backgroundTextureId);
 
 	// Update attribute values.
-	glEnableClientState (GL_VERTEX_ARRAY);
-	glEnableClientState (GL_TEXTURE_COORD_ARRAY);
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
 	glVertexPointer(2, GL_FLOAT, 0, bgTextureVertices);
 	glTexCoordPointer(2, GL_FLOAT, 0, bgTextureCoords);
@@ -112,13 +109,18 @@ void ARDrawingContext::initTexture()
 
 		isTextureInitialized = true;
 	}
-
 }
 
-void ARDrawingContext::uploadTexture(const cv::Mat& frame)
+void ARDrawingContext::uploadTexture(const cv::Mat& frame, GLuint texture)
 {
-	int w = frame.cols;
-	int h = frame.rows;
+	const int w = frame.cols;
+	const int h = frame.rows;
+
+	glPixelStorei(GL_PACK_ALIGNMENT, 1);
+	glBindTexture(GL_TEXTURE_2D, texture);
+
+	// todo internal format must match format
+
 
 	// Upload new texture data:
 	if (frame.channels() == 3)
