@@ -4,3 +4,6 @@
 [submodule "track/node/arduino-cmake"]
 	path = track/node/arduino-cmake
 	url = git@github.com:PIlin/arduino-cmake.git
+[submodule "track/node/mrflib"]
+	path = track/node/mrflib
+	url = git@github.com:PIlin/Mrf24j40-arduino-library.git
