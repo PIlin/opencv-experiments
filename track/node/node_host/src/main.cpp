@@ -1,15 +1,36 @@
 
 #include "Arduino.h"
 
-
-#include "XBee/XBee.h"
-
 #define DEBUG 2
 
 #include "debug.h"
 
 #include "protocol.hpp"
 #include "simple_command.pb.h"
+
+#include "mrf24j.h"
+
+///////
+// wiring
+
+#ifdef ARDUINO_BOARD_leonardo
+static const int pin_reset = 5;
+static const int pin_cs = 7;
+static const int pin_interrupt = 3;
+
+static const int ledPin = 13;
+
+#else
+static const int pin_reset = 5;
+static const int pin_cs = 7;
+static const int pin_interrupt = 2;
+
+// cannot use ledPin beacuse it is SCK
+// static const int ledPin = 13;
+
+#endif
+
+
 
 ///////
 
@@ -59,7 +80,7 @@ static PositionNotify pos_notify;
 
 /////////
 
-int ledPin = 13;
+#ifdef ARDUINO_BOARD_leonardo
 
 void blink(uint8_t count, unsigned long t)
 {
@@ -72,50 +93,22 @@ void blink(uint8_t count, unsigned long t)
   }
 }
 
+#else
+void blink(uint8_t, unsigned long) {}
+#endif
+
 #define ERROR_BLINK(count) blink(count, 100)
-
-
 ////
 
-XBee xbee = XBee();
+#define PAN_ID 0xB41C
+#define HOST_ADDR 0x0001
+#define BROADCAST_ADDR 0xFFFF
 
-XBeeAddress64 addr64 = XBeeAddress64(0x00, 0xffff);
-ZBTxRequest zbTx = ZBTxRequest(addr64, NULL, 0);
-ZBTxStatusResponse txStatus = ZBTxStatusResponse();
+#define THIS_NODE HOST_ADDR
 
-static ZBRxResponse rx = ZBRxResponse();
-static ModemStatusResponse msr = ModemStatusResponse();
-static AtCommandResponse atResponse = AtCommandResponse();
-///
+static Mrf24j mrf(pin_reset, pin_cs, pin_interrupt);
 
-// struct point_t
-// {
-//   uint8_t x;
-//   uint8_t y;
-// };
-
-// static const uint8_t children_count = 4;
-// struct child
-// {
-//   uint32_t addr;
-//   uint8_t p;
-// };
-// static child children[children_count] =
-// {
-//   {0xE9795D40, 0},
-//   {0xDC5C2D40, 1},
-//   {0xD95C2D40, 2},
-//   {0xDA795D40, 3}
-// };
-
-// static uint32_t addr = 0xE9795D40;
-// static const uint8_t positions_count = 4;
-// static point_t positions[positions_count] = {
-//   {10, 10},
-//   {15, 169},
-//   {200, 215},
-//   {140, 25}
-// };
+static uint16_t send_dst_addr = 0;
 
 ////////////////////////
 
@@ -189,11 +182,9 @@ bool packet_xb_writer(uint8_t* data, uint8_t size)
   }
   Serial.println(' ');
 */
-  zbTx.setPayload(data);
-  zbTx.setPayloadLength(size);
-  zbTx.setAddress16(0xFFFE);
 
-  xbee.send(zbTx);
+  const char* pd = (char*)data;
+  mrf.send16(send_dst_addr, pd, size);
 
   ERROR_BLINK(1);
 
@@ -213,17 +204,19 @@ void process_command()
 
   if (command.command == ECommand_BEACON)
   {
-    addr64.setMsb(0);
-    addr64.setLsb(0xFFFF);
+    // addr64.setMsb(0);
+    // addr64.setLsb(0xFFFF);
+    send_dst_addr = BROADCAST_ADDR;
   }
   else
   {
+    // addr64.setLsb(command.node_id.lsb);
+    // addr64.setMsb(command.node_id.msb);
 
-    addr64.setLsb(command.node_id.lsb);
-    addr64.setMsb(command.node_id.msb);
+    send_dst_addr = command.node_id.addr;
   }
 
-  zbTx.setAddress64(addr64);
+  // zbTx.setAddress64(addr64);
 
 /*
   reset_buffer_print();
@@ -241,9 +234,10 @@ void process_command()
 
 void process_position_notify()
 {
-  addr64.setLsb(pos_notify.node_id.lsb);
-  addr64.setMsb(pos_notify.node_id.msb);
-  zbTx.setAddress64(addr64);
+  // addr64.setLsb(pos_notify.node_id.lsb);
+  // addr64.setMsb(pos_notify.node_id.msb);
+  // zbTx.setAddress64(addr64);
+  send_dst_addr = pos_notify.node_id.addr;
   send_package(PositionNotify_fields, &pos_notify, packet_xb_writer);
 }
 
@@ -306,97 +300,39 @@ bool process_incoming_packet(pb_istream_t* isrt)
 
 ///////////////////
 
-void process_ZB_RX_RESPONSE(ZBRxResponse& rx)
+static void process_ZB_RX_RESPONSE()
 {
-  // const uint8_t magic = 0x42;
-  uint8_t* data = rx.getData();
-  uint8_t const length = rx.getDataLength();
-
+  uint8_t* data = mrf.get_rxinfo()->rx_data;
+  uint8_t const length = mrf.rx_datalength();
 
   pb_istream_t istream = pb_istream_from_buffer(data, length);
-
 
   process_incoming_packet(&istream);
 }
 
-void process_ZB_TX_STATUS_RESPONSE()
+static void process_ZB_TX_STATUS_RESPONSE()
 {
-  ZBTxStatusResponse txsr;
-  xbee.getResponse().getZBTxStatusResponse(txsr);
-
   reset_buffer_print();
-  bufferPrint.print("ra "); bufferPrint.println(txsr.getRemoteAddress(), HEX);
-  bufferPrint.print("ds "); bufferPrint.println(txsr.getDeliveryStatus(), HEX);
-  bufferPrint.print("di "); bufferPrint.println(txsr.getDiscoveryStatus(), HEX);
-  bufferPrint.print("rc "); bufferPrint.println(txsr.getTxRetryCount(), HEX);
+  bufferPrint.print("tx "); bufferPrint.println(mrf.get_txinfo()->tx_ok ? "ok" : "err");
+  bufferPrint.print("rc "); bufferPrint.println(mrf.get_txinfo()->retries);
 
   DBGP((char const*)bufferPrint.buf);
 }
 
-uint8_t process_xbee_packets(int timeout = 0)
+
+static void handle_rx(void)
 {
-  uint8_t api_id = 0xff;
+  process_ZB_RX_RESPONSE();
+}
 
+static void handle_tx(void)
+{
+  process_ZB_TX_STATUS_RESPONSE();
+}
 
-  if (timeout)
-  {
-    if (!xbee.readPacket(timeout))
-    {
-      return api_id;
-    }
-  }
-  else
-    xbee.readPacket();
-
-
-  if (xbee.getResponse().isAvailable())
-  {
-    api_id = xbee.getResponse().getApiId();
-    switch (api_id)
-    {
-    case AT_COMMAND_RESPONSE:
-      {
-        DEBUG_PRINTLN("AT_COMMAND_RESPONSE");
-        xbee.getResponse().getAtCommandResponse(atResponse);
-        break;
-      }
-    case ZB_RX_RESPONSE:
-      {
-        DEBUG_PRINTLN("ZB_RX_RESPONSE");
-
-        xbee.getResponse().getZBRxResponse(rx);
-        process_ZB_RX_RESPONSE(rx);
-        break;
-      }
-    case ZB_TX_STATUS_RESPONSE:
-      {
-        DEBUG_PRINTLN("ZB_TX_STATUS_RESPONSE");
-        process_ZB_TX_STATUS_RESPONSE();
-        break;
-      }
-    case MODEM_STATUS_RESPONSE:
-      {
-        DEBUG_PRINTLN("MODEM_STATUS_RESPONSE");
-        static ModemStatusResponse msr;
-        xbee.getResponse().getModemStatusResponse(msr);
-
-        DEBUG_PRINTLN2H("status ", msr.getStatus());
-
-        break;
-      }
-    default:
-      {
-        DEBUG_PRINTLN2H("Got packet with apiId ", xbee.getResponse().getApiId());
-        break;
-      }
-    } // swtich
-  }
-  else if (xbee.getResponse().isError())
-  {
-    DEBUG_PRINTLN2("Error reading packet.  Error code: ", xbee.getResponse().getErrorCode());
-  }
-
-  return api_id;
+static void process_mrf_packets()
+{
+  mrf.check_flags(&handle_rx, &handle_tx);
 }
 
 ///
@@ -415,9 +351,7 @@ void process_serial_package()
     {
       istream_serial.bytes_left = size;
 
-
       process_incoming_packet(&istream_serial);
-
 
       if (istream_serial.bytes_left > 0)
       {
@@ -444,85 +378,63 @@ void process_serial_package()
   }
 }
 
-
-bool at_command(char const * c,
-  uint8_t const* val = NULL, uint8_t val_size = 0,
-  int timeout = 5000)
-{
-  bool status = false;
-  uint8_t* p = (uint8_t*)c;
-
-  static AtCommandRequest r;
-  r.setCommand(p);
-  if (val)
-  {
-    r.setCommandValue((uint8_t*)val);
-    r.setCommandValueLength(val_size);
-  }
-  else
-  {
-    r.clearCommandValue();
-  }
-
-  xbee.send(r);
-
-  unsigned long now = millis();
-  unsigned long last = now;
-
-  while (1)
-  {
-    if (AT_COMMAND_RESPONSE == process_xbee_packets(timeout))
-    {
-      status = (atResponse.getStatus() == 0);
-      DEBUG_PRINTLN2("got AT_COMMAND_RESPONSE status ", atResponse.getStatus());
-      break;
-    }
-    else
-    {
-      now = millis();
-      if (now - last >= timeout)
-      {
-        DEBUG_PRINTLN("AT_COMMAND_RESPONSE timeout");
-        break;
-      }
-    }
-  }
-
-  return status;
-}
-
-// void get_our_address()
-// {
-//   DEBUG_PRINTLN("get_our_address");
-
-//   while (!at_command("SL"))
-//   { }
-//   //memcpy(&this_node.lsb, atResponse.getValue(), 4);
-//   //DEBUG_PRINTLN2("value len ", atResponse.getValueLength());
-
-//   for (int i = 0; i < 4; ++i)
-//     ((uint8_t*)(&this_node.lsb))[i] = atResponse.getValue()[3 - i];
-
-//   while (!at_command("SH"))
-//   { }
-//   //memcpy(&this_node.msb, atResponse.getValue(), 4);
-//   //DEBUG_PRINTLN2("value len ", atResponse.getValueLength());
-//   for (int i = 0; i < 4; ++i)
-//     ((uint8_t*)(&this_node.msb))[i] = atResponse.getValue()[3 - i];
-
-//   DEBUG_PRINTLN2H("this_node.msb", this_node.msb);
-//   DEBUG_PRINTLN2H("this_node.lsb", this_node.lsb);
-// }
-
-void initial_xb_setup()
-{
-  {
-    uint8_t p[] = {0x28, 0x42};
-    at_command("ID", p, sizeof(p));
-  }
-}
-
 ///
+
+static void mrf_interrupt(void)
+{
+  mrf.interrupt_handler();
+}
+
+static void setup_mrf(void)
+{
+  // Serial.println("setup mrf node " xstr(ARDUINO_NODE_ID));
+
+  //SPI.setClockDivider(B00000001); // spi speed
+
+  mrf.reset();
+  mrf.init();
+
+  mrf.set_pan(0xabba);
+  mrf.address16_write(THIS_NODE);
+
+  //mrf.set_promiscuous(true);
+
+  //mrf.write_short(MRF_RXMCR, 0x02); // error mode
+
+  attachInterrupt(0, mrf_interrupt, CHANGE);
+  interrupts();
+
+  delay(1000);
+
+  Serial.println("done setup mrf");
+}
+
+void check_mrf(void)
+{
+  // DEBUG_PRINTLN("check_mrf");
+  // int pan = mrf.get_pan();
+  // DEBUG_PRINTLN2H("pan ", pan);
+
+  // int addr = mrf.address16_read();
+  // DEBUG_PRINTLN2H("addr ", addr);
+
+  // DEBUG_SHORT(MRF_PACON2);
+  // DEBUG_SHORT(MRF_TXSTBL);
+
+  // DEBUG_LONG(MRF_RFCON0);
+  // DEBUG_LONG(MRF_RFCON1);
+  // DEBUG_LONG(MRF_RFCON2);
+  // DEBUG_LONG(MRF_RFCON6);
+  // DEBUG_LONG(MRF_RFCON7);
+  // DEBUG_LONG(MRF_RFCON8);
+  // DEBUG_LONG(MRF_SLPCON1);
+
+  // DEBUG_SHORT(MRF_BBREG2);
+  // DEBUG_SHORT(MRF_CCAEDTH);
+  // DEBUG_SHORT(MRF_BBREG6);
+
+  // DEBUG_PRINTLN("done check_mrf");
+}
 
 void setup()
 {
@@ -530,8 +442,8 @@ void setup()
 
   Serial.begin(57600);
 
-  XBEE_SERIAL.begin(9600);
-  xbee.begin(XBEE_SERIAL);
+  setup_mrf();
+  check_mrf();
 
 
   while (!Serial);
@@ -540,23 +452,12 @@ void setup()
 
   DBGP("Greetings!");
 
-  initial_xb_setup();
-
-  // get_our_address();
 }
 
 void loop()
 {
 
-  // if (Serial.available() > 0)
-  // {
-  //   char r = Serial.read();
-  //   // DEBUG_PRINTLN2("serial available", r);
-
-  //   change_pattern();
-  // }
-
   process_serial_package();
+  process_mrf_packets();
 
-  process_xbee_packets();
 }

@@ -2,24 +2,19 @@
 
 cmake_minimum_required(VERSION 2.8)
 
-#print_board_list()
-#print_programmer_list()
-
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../arduino_libs/XBee)
-
 set(TARGET_NAME node_host)
-set(TARGET_BOARD leonardo)
-
-#set(${TARGET_NAME}_PORT /dev/tty.usbmodemfd141)
-#set(${TARGET_NAME}_PORT /dev/tty.usbmodemfa141)
-set(${TARGET_NAME}_PORT /dev/tty.usbmodemfa1311)
-#set(${TARGET_NAME}_PORT /dev/tty.usbmodemfa1331)
 
 project( ${TARGET_NAME}_proj )
 
-file(GLOB_RECURSE ${TARGET_NAME}_SRCS *.cpp *.c)
-file(GLOB_RECURSE ${TARGET_NAME}_HDRS *.hpp *.h)
+set(MRF_LIB_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../mrflib/)
 
+file(GLOB_RECURSE SRCS *.cpp *.c)
+file(GLOB_RECURSE HDRS *.hpp *.h)
+
+
+list(APPEND SRCS ${MRF_LIB_PATH}/mrf24j.cpp)
+list(APPEND HDRS ${MRF_LIB_PATH}/mrf24j.h)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../mrflib/)
 
 
 set(NANOPB_SRC_ROOT_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}/../../nanopb")
@@ -27,15 +22,39 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${NANOPB_SRC_ROOT_FOLDER}/cmake)
 find_package( Nanopb REQUIRED )
 
 NANOPB_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/../../../proto/simple_command.proto)
-
+list(APPEND SRCS ${PROTO_SRCS})
+list(APPEND HDRS ${PROTO_HDRS})
 include_directories(${NANOPB_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
+function (BUILD_FOR_BOARD TNAME)
+	parse_generator_arguments(${TNAME} INPUT
+						  ""                  # Options
+						  "TID;BOARD;PORT"        # One Value Keywords
+						  "SRCS;HDRS"  # Multi Value Keywords
+						  ${ARGN})
 
+	set(TBNAME ${TNAME}_${INPUT_TID}_${INPUT_BOARD})
 
-set( ${TARGET_NAME}_SRCS  ${${TARGET_NAME}_SRCS} ${PROTO_SRCS})
-set( ${TARGET_NAME}_HDRS  ${${TARGET_NAME}_HDRS} ${PROTO_HDRS})
+	message(STATUS "Have target ${TBNAME}")
 
+	generate_arduino_firmware(${TBNAME}
+		BOARD ${INPUT_BOARD}
+		SRCS ${INPUT_SRCS}
+		HDRS ${INPUT_HDRS}
+		PORT ${INPUT_PORT}
+	)
 
+	set_target_properties(${TBNAME} PROPERTIES
+		COMPILE_DEFINITIONS "ARDUINO_BOARD_${INPUT_BOARD};ARDUINO_NODE_ID=${INPUT_TID}"
+	)
 
-generate_arduino_firmware(${TARGET_NAME} BOARD ${TARGET_BOARD} NO_AUTOLIBS)
+endfunction()
+
+BUILD_FOR_BOARD(${TARGET_NAME}
+	TID 0
+	SRCS ${SRCS}
+	HDRS ${HDRS}
+	BOARD "leonardo"
+	PORT "/dev/tty.usbmodemfa1311"
+)
