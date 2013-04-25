@@ -34,7 +34,7 @@ struct Camera
 
 protected:
 	cv::VideoCapture camera;
-	Camera() : Camera(0) {}
+	Camera() : Camera(1) {}
 	Camera(int device) : camera(device) { checkCam(); }
 };
 

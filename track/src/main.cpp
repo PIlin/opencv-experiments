@@ -333,7 +333,7 @@ int main ( int argc, char **argv )  try
 	bool manual = false;
 	bool need_step = true;
 	bool allow_autocalibrate = true;
-	bool allow_beacon_request = true;
+	bool allow_beacon_request = false;
 
 	while (true)
 	{
