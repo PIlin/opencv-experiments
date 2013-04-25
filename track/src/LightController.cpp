@@ -11,6 +11,21 @@
 
 #include <simple_command.pb.h>
 
+LightID::LightID(::NodeAddress const& na) :
+	id(na.addr())
+{
+
+}
+
+void LightID::set_node_address(::NodeAddress* na) const
+{
+	if (!na)
+		throw std::runtime_error("no address field to initialize");
+
+	na->set_addr(id);
+}
+
+
 namespace ba = boost::asio;
 
 
@@ -257,7 +272,7 @@ public:
 		}
 		else
 		{
-			LightID lid = LightID(sa.node_id().msb(), sa.node_id().lsb());
+			LightID lid = LightID(sa.node_id());
 
 			auto it = std::find_if(commands.begin(), commands.end(), [&](TimeredCommand& com){
 				return sa.command() == com.com.com
@@ -298,7 +313,7 @@ public:
 	void process_incoming_beacon(SimpleAnswer const& be)
 	{
 		auto& lm = owner.lightmap;
-		LightID lid = LightID(be.node_id().msb(), be.node_id().lsb());
+		LightID lid = LightID(be.node_id());
 		auto it = lm.find(lid);
 		if (it == lm.end())
 		{
@@ -365,8 +380,7 @@ public:
 			SimpleCommand* pcom = package.mutable_simple_command();
 			SimpleCommand& c = *pcom;
 
-			c.mutable_node_id()->set_lsb(com.id.lsb);
-			c.mutable_node_id()->set_msb(com.id.msb);
+			com.id.set_node_address(c.mutable_node_id());
 			c.set_command(com.com);
 			c.set_number(com.number);
 		}
@@ -381,8 +395,7 @@ public:
 			PositionNotify* ppno = package.mutable_position_notify();
 			PositionNotify& pno = *ppno;
 
-			pno.mutable_node_id()->set_lsb(no.id.lsb);
-			pno.mutable_node_id()->set_msb(no.id.msb);
+			no.id.set_node_address(pno.mutable_node_id());
 			pno.set_number(no.number);
 			pno.set_x(no.x);
 			pno.set_y(no.y);
@@ -433,7 +446,7 @@ public:
 				is_discovery_going = false;
 			});
 
-		Command c = {BEACON, LightID(0,0)};
+		Command c = {BEACON, LightID()};
 		send_command(c);
 
 		is_discovery_going = true;
@@ -659,7 +672,7 @@ bool LightController::have_undetected() const
 
 LightID LightController::get_undetected() const
 {
-	static LightID last_undetected(0,0);
+	static LightID last_undetected;
 
 	auto cmp = [&](decltype(lightmap)::value_type const& it) -> bool
 		{
@@ -680,7 +693,7 @@ LightID LightController::get_undetected() const
 	}
 	else
 	{
-		last_undetected = LightID(0,0);
+		last_undetected = LightID();
 	}
 
 	throw std::logic_error("there is no undetected lights");

@@ -6,21 +6,45 @@
 #include "StateController.hpp"
 #include "IDetection.hpp"
 
+// struct LightID
+// {
+// 	uint32_t msb;
+// 	uint32_t lsb;
+
+// 	LightID(uint32_t msb, uint32_t lsb) : msb(msb), lsb(lsb) {}
+
+// 	bool operator<(LightID const& o) const { return std::make_pair(msb, lsb) < std::make_pair(o.msb, o.lsb); }
+// 	bool operator==(LightID const& o) const { return std::make_pair(msb, lsb) == std::make_pair(o.msb, o.lsb); }
+// 	bool operator!=(LightID const& o) const { return !(*this == o); }
+
+// 	template <typename ostream_T>
+// 	friend ostream_T& operator<<(ostream_T& os, LightID const& lid)
+// 	{
+// 		os << std::hex << lid.msb << " " << lid.lsb << std::dec;
+// 		return os;
+// 	}
+// };
+
+class NodeAddress;
+
 struct LightID
 {
-	uint32_t msb;
-	uint32_t lsb;
+	uint16_t id;
 
-	LightID(uint32_t msb, uint32_t lsb) : msb(msb), lsb(lsb) {}
+	LightID() : id(0) {}
+	//explicit LightID(uint16_t id) : id(id) {}
+	explicit LightID(::NodeAddress const& na);
 
-	bool operator<(LightID const& o) const { return std::make_pair(msb, lsb) < std::make_pair(o.msb, o.lsb); }
-	bool operator==(LightID const& o) const { return std::make_pair(msb, lsb) == std::make_pair(o.msb, o.lsb); }
+	void set_node_address(::NodeAddress* na) const;
+
+	bool operator<(LightID const& o) const { return id < o.id; }
+	bool operator==(LightID const& o) const { return id == o.id; }
 	bool operator!=(LightID const& o) const { return !(*this == o); }
 
 	template <typename ostream_T>
 	friend ostream_T& operator<<(ostream_T& os, LightID const& lid)
 	{
-		os << std::hex << lid.msb << " " << lid.lsb << std::dec;
+		os << std::hex << lid.id << std::dec;
 		return os;
 	}
 };
