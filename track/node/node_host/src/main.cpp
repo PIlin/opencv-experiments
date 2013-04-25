@@ -30,18 +30,6 @@ static const int pin_interrupt = 2;
 
 #endif
 
-
-
-///////
-
-#ifdef __AVR_ATmega32U4__
-# define XBEE_SERIAL Serial1
-#else
-# include <SoftwareSerial.h>
-SoftwareSerial soft_serial(10, 11);
-# define XBEE_SERIAL soft_serial
-#endif
-
 ////////////
 
 
@@ -110,6 +98,11 @@ static Mrf24j mrf(pin_reset, pin_cs, pin_interrupt);
 
 static uint16_t send_dst_addr = 0;
 
+static bool sent = false;
+static bool sent_ok = false;
+
+static void process_mrf_packets();
+
 ////////////////////////
 
 static bool packet_stream_reader(pb_istream_t* stream, uint8_t* buf, size_t count)
@@ -161,7 +154,7 @@ void DBGP(char const* x)
 
 bool packet_xb_writer(uint8_t* data, uint8_t size)
 {
-/*
+
   reset_buffer_print();
   bufferPrint.print("packet_xb_writer size "); bufferPrint.print(size);
   DBGP((char const*)bufferPrint.buf);
@@ -172,7 +165,7 @@ bool packet_xb_writer(uint8_t* data, uint8_t size)
     bufferPrint.print(data[i], HEX); bufferPrint.print(" ");
   }
   DBGP((char const*)bufferPrint.buf);
-*/
+
 /*
   Serial.print("packet_xb_writer size "); Serial.println(size);
   Serial.print("packet_xb_writer data "); Serial.println((size_t)data, HEX);
@@ -184,11 +177,14 @@ bool packet_xb_writer(uint8_t* data, uint8_t size)
 */
 
   const char* pd = (char*)data;
+  sent = false;
+  sent_ok = false;
   mrf.send16(send_dst_addr, pd, size);
 
-  ERROR_BLINK(1);
+  while (!sent)
+    process_mrf_packets();
 
-  return true;
+  return sent_ok;
 }
 /////////
 
@@ -313,7 +309,11 @@ static void process_ZB_RX_RESPONSE()
 static void process_ZB_TX_STATUS_RESPONSE()
 {
   reset_buffer_print();
-  bufferPrint.print("tx "); bufferPrint.println(mrf.get_txinfo()->tx_ok ? "ok" : "err");
+
+  sent = true;
+  sent_ok = mrf.get_txinfo()->tx_ok;
+
+  bufferPrint.print("tx "); bufferPrint.println(sent_ok ? "ok" : "err");
   bufferPrint.print("rc "); bufferPrint.println(mrf.get_txinfo()->retries);
 
   DBGP((char const*)bufferPrint.buf);
