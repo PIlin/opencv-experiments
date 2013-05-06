@@ -1,25 +1,27 @@
+import select
+import socket
+import sys
 
 from pprint import pprint
 
 import simple_command_pb2 as scp
-import serial
-
-# import logging
-
 from google.protobuf.text_format import MessageToString
-
-host_node_tty = '/dev/tty.usbmodemfa1311'
-
-ser = serial.Serial(host_node_tty, 57600)
 
 def byte_from_string(s, pos):
 	return ord(s[pos])
 
 def serial_read(size = 1):
-	return ser.read(size)
+	buf = str()
+	while len(buf) < size:
+		d = s.recv(size - len(buf))
+		if not d:
+			print('no data from socket')
+			sys.exit()
+		buf = buf + d
+	return buf
 
 def serial_write(data):
-	ser.write(data)
+	s.sendall(data)
 
 def get_message():
 	size = byte_from_string(serial_read(1), 0)
@@ -49,8 +51,6 @@ def send_message(msg):
 	print(MessageToString(msg))
 
 
-
-
 def send_beacon_req():
 	msg = scp.MessagePackage()
 
@@ -61,12 +61,32 @@ def send_beacon_req():
 	send_message(msg)
 
 
-send_beacon_req()
-
-# m = bytearray([0x22,0x1A,0x0A,0x18,0x70,0x61,0x63,0x6B,0x65,0x74])
-# decode_message(str(m))
 
 
+def proc_stdin():
+	d = sys.stdin.readline()
+	print(d)
+
+	if d.startswith('b'):
+		send_beacon_req()
+
+def proc_sock():
+	msg = get_message()
+
+
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.connect(('127.0.0.1', 2390))
 
 while True:
-	msg = get_message()
+	read = [sys.stdin, s]
+	# read = [sys.stdin, ]
+
+	rrrr = select.select(read, [], [], 0.0)[0]
+
+	for r in rrrr:
+		pprint(r)
+		if r == sys.stdin:
+			proc_stdin()
+		elif r == s:
+			proc_sock()
