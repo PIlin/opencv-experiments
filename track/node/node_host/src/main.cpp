@@ -30,6 +30,10 @@ static const int pin_interrupt = 2;
 
 #endif
 
+
+// #define MAIN_SERIAL Serial
+#define MAIN_SERIAL Serial1
+
 ////////////
 
 
@@ -103,23 +107,47 @@ static bool sent_ok = false;
 
 static void process_mrf_packets();
 
+bool packet_stream_writer(uint8_t* data, uint8_t size);
+
+////////////////////////
+
+void DBGP(char const* x)
+{
+  debug_print(x, packet_stream_writer);
+}
+
+void DBGP_BUF(void const* x, uint8_t size)
+{
+  reset_buffer_print();
+  uint8_t const* data = (uint8_t const*)x;
+  for (int i = 0; i < size; ++i)
+  {
+    bufferPrint.print(data[i], HEX); bufferPrint.print(" ");
+  }
+  DBGP((char const*)bufferPrint.buf);
+
+}
+
+
 ////////////////////////
 
 static bool packet_stream_reader(pb_istream_t* stream, uint8_t* buf, size_t count)
 {
   if (buf)
   {
-    if (Serial.readBytes((char*)buf, count) < count)
+    if (MAIN_SERIAL.readBytes((char*)buf, count) < count)
     {
       return false;
     }
+
+    // DBGP_BUF(buf, count);
   }
   else
   {
     char c;
     while (count--)
     {
-      if (Serial.readBytes(&c, 1) < 1)
+      if (MAIN_SERIAL.readBytes(&c, 1) < 1)
       {
         return false;
       }
@@ -136,8 +164,8 @@ bool packet_stream_writer(uint8_t* data, uint8_t size)
   // on serial size + message
 
 
-  if (Serial.write(size) != 1 ||
-    Serial.write(data, size) != size)
+  if (MAIN_SERIAL.write(size) != 1 ||
+    MAIN_SERIAL.write(data, size) != size)
   {
 
     return false;
@@ -147,10 +175,7 @@ bool packet_stream_writer(uint8_t* data, uint8_t size)
 }
 
 
-void DBGP(char const* x)
-{
-  debug_print(x, packet_stream_writer);
-}
+
 
 bool packet_xb_writer(uint8_t* data, uint8_t size)
 {
@@ -159,21 +184,15 @@ bool packet_xb_writer(uint8_t* data, uint8_t size)
   bufferPrint.print("packet_xb_writer size "); bufferPrint.print(size);
   DBGP((char const*)bufferPrint.buf);
 
-  reset_buffer_print();
-  for (int i = 0; i < size; ++i)
-  {
-    bufferPrint.print(data[i], HEX); bufferPrint.print(" ");
-  }
-  DBGP((char const*)bufferPrint.buf);
-
+  DBGP_BUF(data, size);
 /*
-  Serial.print("packet_xb_writer size "); Serial.println(size);
-  Serial.print("packet_xb_writer data "); Serial.println((size_t)data, HEX);
+  MAIN_SERIAL.print("packet_xb_writer size "); MAIN_SERIAL.println(size);
+  MAIN_SERIAL.print("packet_xb_writer data "); MAIN_SERIAL.println((size_t)data, HEX);
   for (int i = 0; i < size; ++i)
   {
-    Serial.print(data[i], HEX); Serial.print(" ");
+    MAIN_SERIAL.print(data[i], HEX); MAIN_SERIAL.print(" ");
   }
-  Serial.println(' ');
+  MAIN_SERIAL.println(' ');
 */
 
   const char* pd = (char*)data;
@@ -183,6 +202,8 @@ bool packet_xb_writer(uint8_t* data, uint8_t size)
 
   while (!sent)
     process_mrf_packets();
+
+  DEBUG_PRINT("packet_xb_writer done");
 
   return sent_ok;
 }
@@ -203,6 +224,7 @@ void process_command()
     // addr64.setMsb(0);
     // addr64.setLsb(0xFFFF);
     send_dst_addr = BROADCAST_ADDR;
+    DBGP("got beacon");
   }
   else
   {
@@ -214,15 +236,14 @@ void process_command()
 
   // zbTx.setAddress64(addr64);
 
-/*
+
   reset_buffer_print();
   bufferPrint.print("PC: ");
   bufferPrint.print("C "); bufferPrint.print(command.command);
   bufferPrint.print(", N "); bufferPrint.print(command.number);
-  bufferPrint.print(", lsb "); bufferPrint.print(command.node_id.lsb);
-  bufferPrint.print(", msb "); bufferPrint.print(command.node_id.msb);
+  bufferPrint.print(", addr "); bufferPrint.print(command.node_id.addr);
   DBGP((char const*)bufferPrint.buf);
-*/
+
 
   send_package(SimpleCommand_fields, &command, packet_xb_writer);
   // send_package(SimpleCommand_fields, &command, packet_stream_writer);
@@ -279,7 +300,7 @@ bool process_incoming_packet(pb_istream_t* isrt)
   }
   else
   {
-    // Serial.println("Unknown package");
+    // MAIN_SERIAL.println("Unknown package");
     //ERROR_BLINK(9);
   }
 
@@ -345,7 +366,7 @@ void process_serial_package()
   static uint8_t size = 0;
   static bool in_package = false;
 
-  while (Serial.available() > 0)
+  while (MAIN_SERIAL.available() > 0)
   {
     if (in_package)
     {
@@ -355,9 +376,9 @@ void process_serial_package()
 
       if (istream_serial.bytes_left > 0)
       {
-        // Serial.println("Bytes left");
+        // MAIN_SERIAL.println("Bytes left");
         while (istream_serial.bytes_left--)
-          Serial.read();
+          MAIN_SERIAL.read();
       }
 
       in_package = false;
@@ -365,9 +386,9 @@ void process_serial_package()
     }
     else
     {
-      if (Serial.available() > 0)
+      if (MAIN_SERIAL.available() > 0)
       {
-        if (Serial.readBytes((char*)&size, 1) == 1)
+        if (MAIN_SERIAL.readBytes((char*)&size, 1) == 1)
         {
           // DBGP("in package");
 
@@ -387,7 +408,7 @@ static void mrf_interrupt(void)
 
 static void setup_mrf(void)
 {
-  // Serial.println("setup mrf node " xstr(ARDUINO_NODE_ID));
+  // MAIN_SERIAL.println("setup mrf node " xstr(ARDUINO_NODE_ID));
 
   //SPI.setClockDivider(B00000001); // spi speed
 
@@ -406,58 +427,34 @@ static void setup_mrf(void)
 
   delay(1000);
 
-  Serial.println("done setup mrf");
-}
-
-void check_mrf(void)
-{
-  // DEBUG_PRINTLN("check_mrf");
-  // int pan = mrf.get_pan();
-  // DEBUG_PRINTLN2H("pan ", pan);
-
-  // int addr = mrf.address16_read();
-  // DEBUG_PRINTLN2H("addr ", addr);
-
-  // DEBUG_SHORT(MRF_PACON2);
-  // DEBUG_SHORT(MRF_TXSTBL);
-
-  // DEBUG_LONG(MRF_RFCON0);
-  // DEBUG_LONG(MRF_RFCON1);
-  // DEBUG_LONG(MRF_RFCON2);
-  // DEBUG_LONG(MRF_RFCON6);
-  // DEBUG_LONG(MRF_RFCON7);
-  // DEBUG_LONG(MRF_RFCON8);
-  // DEBUG_LONG(MRF_SLPCON1);
-
-  // DEBUG_SHORT(MRF_BBREG2);
-  // DEBUG_SHORT(MRF_CCAEDTH);
-  // DEBUG_SHORT(MRF_BBREG6);
-
-  // DEBUG_PRINTLN("done check_mrf");
+  DBGP("done setup mrf");
 }
 
 void setup()
 {
   pinMode(ledPin, OUTPUT);
 
-  Serial.begin(57600);
+  MAIN_SERIAL.begin(57600);
 
   setup_mrf();
-  check_mrf();
 
-
-  while (!Serial);
+  while (!MAIN_SERIAL);
 
   // ERROR_BLINK(5);
 
   DBGP("Greetings!");
-
 }
 
 void loop()
 {
-
   process_serial_package();
   process_mrf_packets();
 
+  static unsigned int prev = millis();
+  unsigned int now = millis();
+  if (now - prev >= 1000)
+  {
+    DBGP("alive");
+    prev = now;
+  }
 }
