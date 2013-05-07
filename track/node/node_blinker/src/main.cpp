@@ -179,19 +179,14 @@ bool packet_xb_writer(uint8_t* data, uint8_t size)
   mrf.send16(send_dst_addr, pd, size);
 
   unsigned long now = millis();
-  bool timeout = false;
+
   do
   {
     DEBUG_PRINTLN("packet_xb_writer waiting");
     process_mrf_packets();
-  } while (!(sent || (timeout = (millis() - now > 3000))));
+  } while (!sent);
 
   DEBUG_PRINTLN("packet_xb_writer done");
-
-  if (timeout)
-  {
-    DEBUG_PRINTLN("was timeout");
-  }
 
   return sent_ok;
 }
