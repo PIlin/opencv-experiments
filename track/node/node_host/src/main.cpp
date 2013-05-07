@@ -31,8 +31,8 @@ static const int pin_interrupt = 2;
 #endif
 
 
-// #define MAIN_SERIAL Serial
-#define MAIN_SERIAL Serial1
+#define MAIN_SERIAL Serial
+// #define MAIN_SERIAL Serial1
 
 ////////////
 
