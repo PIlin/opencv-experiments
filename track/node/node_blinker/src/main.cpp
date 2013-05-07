@@ -198,22 +198,6 @@ bool packet_xb_writer(uint8_t* data, uint8_t size)
 
 ////////////////////////
 
-
-void send_beacon()
-{
-  DEBUG_PRINTLN("send_beacon");
-  answer.node_id.addr = THIS_NODE;
-  answer.command = ECommand_BEACON;
-  answer.answer = 0;
-  answer.number = command.number;
-
-
-
-  send_package(SimpleAnswer_fields, &answer, packet_xb_writer);
-}
-
-//
-
 void process_command()
 {
   DEBUG_PRINTLN("process_command");
@@ -258,15 +242,19 @@ void process_command()
       }
       case ECommand_BEACON:
       {
+        // answer is ready for beacon, no processing needed
         DEBUG_PRINTLN("ECommand_BEACON");
-        send_beacon();
         break;
+      }
+      default:
+      {
+        answer.answer = -1;
       }
     }
 
+    send_package(SimpleAnswer_fields, &answer, packet_xb_writer);
   }
 
-  send_package(SimpleAnswer_fields, &answer, packet_xb_writer);
 }
 
 void process_position_notify()
