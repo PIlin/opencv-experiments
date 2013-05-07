@@ -180,11 +180,6 @@ bool packet_stream_writer(uint8_t* data, uint8_t size)
 bool packet_xb_writer(uint8_t* data, uint8_t size)
 {
 
-  reset_buffer_print();
-  bufferPrint.print("packet_xb_writer size "); bufferPrint.print(size);
-  DBGP((char const*)bufferPrint.buf);
-
-  DBGP_BUF(data, size);
 /*
   MAIN_SERIAL.print("packet_xb_writer size "); MAIN_SERIAL.println(size);
   MAIN_SERIAL.print("packet_xb_writer data "); MAIN_SERIAL.println((size_t)data, HEX);
