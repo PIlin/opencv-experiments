@@ -10,6 +10,10 @@
 
 #include "mrf24j.h"
 
+
+#define DEBUG_SHORT(x) do { DEBUG_PRINTLN2H(#x " ", mrf.read_short(x)); } while (0)
+#define DEBUG_LONG(x) do { DEBUG_PRINTLN2H(#x " ", mrf.read_long(x)); } while (0)
+
 ///////
 // wiring
 
@@ -425,6 +429,33 @@ static void setup_mrf(void)
   DBGP("done setup mrf");
 }
 
+void check_mrf(void)
+{
+  DEBUG_PRINTLN("check_mrf");
+  int pan = mrf.get_pan();
+  DEBUG_PRINTLN2H("pan ", pan);
+
+  int addr = mrf.address16_read();
+  DEBUG_PRINTLN2H("addr ", addr);
+
+  DEBUG_SHORT(MRF_PACON2);
+  DEBUG_SHORT(MRF_TXSTBL);
+
+  DEBUG_LONG(MRF_RFCON0);
+  DEBUG_LONG(MRF_RFCON1);
+  DEBUG_LONG(MRF_RFCON2);
+  DEBUG_LONG(MRF_RFCON6);
+  DEBUG_LONG(MRF_RFCON7);
+  DEBUG_LONG(MRF_RFCON8);
+  DEBUG_LONG(MRF_SLPCON1);
+
+  DEBUG_SHORT(MRF_BBREG2);
+  DEBUG_SHORT(MRF_CCAEDTH);
+  DEBUG_SHORT(MRF_BBREG6);
+
+  DEBUG_PRINTLN("done check_mrf");
+}
+
 void setup()
 {
   pinMode(ledPin, OUTPUT);
@@ -438,6 +469,8 @@ void setup()
   // ERROR_BLINK(5);
 
   DBGP("Greetings!");
+
+  check_mrf();
 }
 
 void loop()
@@ -447,7 +480,7 @@ void loop()
 
   static unsigned int prev = millis();
   unsigned int now = millis();
-  if (now - prev >= 1000)
+  if (now - prev >= 10000)
   {
     DBGP("alive");
     prev = now;
