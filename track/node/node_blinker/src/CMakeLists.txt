@@ -65,5 +65,6 @@ BUILD_FOR_BOARD(${TARGET_NAME}
 	SRCS ${SRCS}
 	HDRS ${HDRS}
 	BOARD "leonardo"
-	PORT "/dev/tty.usbmodemfa121"
+	# PORT "/dev/tty.usbmodemfa121"
+	PORT "/dev/tty.usbmodemfa1331"
 )
