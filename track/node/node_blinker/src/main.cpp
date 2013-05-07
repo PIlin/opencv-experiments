@@ -45,6 +45,9 @@ static const int pin_interrupt = 2;
 #endif
 
 
+// #define MAIN_SERIAL Serial
+// #define MAIN_SERIAL Serial1
+
 /////////
 
 struct ColorRect
@@ -127,45 +130,45 @@ static void process_mrf_packets();
 
 ////////////////////////
 
-static bool packet_stream_reader(pb_istream_t* stream, uint8_t* buf, size_t count)
-{
-  if (buf)
-  {
-    if (Serial.readBytes((char*)buf, count) < count)
-    {
-      return false;
-    }
-  }
-  else
-  {
-    char c;
-    while (count--)
-    {
-      if (Serial.readBytes(&c, 1) < 1)
-      {
-        return false;
-      }
-    }
-  }
+// static bool packet_stream_reader(pb_istream_t* stream, uint8_t* buf, size_t count)
+// {
+//   if (buf)
+//   {
+//     if (MAIN_SERIAL.readBytes((char*)buf, count) < count)
+//     {
+//       return false;
+//     }
+//   }
+//   else
+//   {
+//     char c;
+//     while (count--)
+//     {
+//       if (MAIN_SERIAL.readBytes(&c, 1) < 1)
+//       {
+//         return false;
+//       }
+//     }
+//   }
 
-  return true;
-}
+//   return true;
+// }
 
-pb_istream_t istream_serial = {&packet_stream_reader, NULL, 65535u};
+// pb_istream_t istream_serial = {&packet_stream_reader, NULL, 65535u};
 
-bool packet_stream_writer(uint8_t* data, uint8_t size)
-{
-  // on serial size + message
+// bool packet_stream_writer(uint8_t* data, uint8_t size)
+// {
+//   // on serial size + message
 
-  if (Serial.write(size) != 1 ||
-    Serial.write(data, size) != size)
-  {
+//   if (MAIN_SERIAL.write(size) != 1 ||
+//     MAIN_SERIAL.write(data, size) != size)
+//   {
 
-    return false;
-  }
+//     return false;
+//   }
 
-  return true;
-}
+//   return true;
+// }
 
 
 bool packet_xb_writer(uint8_t* data, uint8_t size)
@@ -381,6 +384,44 @@ static void process_mrf_packets()
   mrf.check_flags(&handle_rx, &handle_tx);
 }
 
+// void process_serial_package()
+// {
+//   static uint8_t size = 0;
+//   static bool in_package = false;
+
+//   while (MAIN_SERIAL.available() > 0)
+//   {
+//     if (in_package)
+//     {
+//       istream_serial.bytes_left = size;
+
+//       process_incoming_packet(&istream_serial);
+
+//       if (istream_serial.bytes_left > 0)
+//       {
+//         // MAIN_SERIAL.println("Bytes left");
+//         while (istream_serial.bytes_left--)
+//           MAIN_SERIAL.read();
+//       }
+
+//       in_package = false;
+//       // ERROR_BLINK(1);
+//     }
+//     else
+//     {
+//       if (MAIN_SERIAL.available() > 0)
+//       {
+//         if (MAIN_SERIAL.readBytes((char*)&size, 1) == 1)
+//         {
+//           // DBGP("in package");
+
+//           in_package = true;
+//         }
+//       }
+//     }
+//   }
+// }
+
 ///
 
 static void mrf_interrupt(void)
@@ -450,6 +491,7 @@ void setup()
   set_led(false);
 
   Serial.begin(57600);
+  // MAIN_SERIAL.begin(57600);
 
   setup_mrf();
   check_mrf();
@@ -463,5 +505,6 @@ void setup()
 
 void loop()
 {
+  // process_serial_package();
   process_mrf_packets();
 }
